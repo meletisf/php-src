@@ -25,7 +25,7 @@
 #include "basic_functions.h"
 #include "dir_arginfo.h"
 
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 #include <unistd.h>
 #endif
 
@@ -58,6 +58,9 @@ php_dir_globals dir_globals;
 
 static zend_class_entry *dir_class_entry_ptr;
 
+#define Z_DIRECTORY_PATH_P(zv) OBJ_PROP_NUM(Z_OBJ_P(zv), 0)
+#define Z_DIRECTORY_HANDLE_P(zv) OBJ_PROP_NUM(Z_OBJ_P(zv), 1)
+
 #define FETCH_DIRP() \
 	myself = getThis(); \
 	if (!myself) { \
@@ -80,11 +83,12 @@ static zend_class_entry *dir_class_entry_ptr;
 		} \
 	} else { \
 		ZEND_PARSE_PARAMETERS_NONE(); \
-		if ((tmp = zend_hash_str_find(Z_OBJPROP_P(myself), "handle", sizeof("handle")-1)) == NULL) { \
+		zval *handle_zv = Z_DIRECTORY_HANDLE_P(myself); \
+		if (Z_TYPE_P(handle_zv) != IS_RESOURCE) { \
 			zend_throw_error(NULL, "Unable to find my handle property"); \
 			RETURN_THROWS(); \
 		} \
-		if ((dirp = (php_stream *)zend_fetch_resource_ex(tmp, "Directory", php_file_le_stream())) == NULL) { \
+		if ((dirp = (php_stream *)zend_fetch_resource_ex(handle_zv, "Directory", php_file_le_stream())) == NULL) { \
 			RETURN_THROWS(); \
 		} \
 	}
@@ -121,50 +125,50 @@ PHP_MINIT_FUNCTION(dir)
 
 	dirsep_str[0] = DEFAULT_SLASH;
 	dirsep_str[1] = '\0';
-	REGISTER_STRING_CONSTANT("DIRECTORY_SEPARATOR", dirsep_str, CONST_CS|CONST_PERSISTENT);
+	REGISTER_STRING_CONSTANT("DIRECTORY_SEPARATOR", dirsep_str, CONST_PERSISTENT);
 
 	pathsep_str[0] = ZEND_PATHS_SEPARATOR;
 	pathsep_str[1] = '\0';
-	REGISTER_STRING_CONSTANT("PATH_SEPARATOR", pathsep_str, CONST_CS|CONST_PERSISTENT);
+	REGISTER_STRING_CONSTANT("PATH_SEPARATOR", pathsep_str, CONST_PERSISTENT);
 
-	REGISTER_LONG_CONSTANT("SCANDIR_SORT_ASCENDING",  PHP_SCANDIR_SORT_ASCENDING,  CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("SCANDIR_SORT_DESCENDING", PHP_SCANDIR_SORT_DESCENDING, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("SCANDIR_SORT_NONE",       PHP_SCANDIR_SORT_NONE,       CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SCANDIR_SORT_ASCENDING",  PHP_SCANDIR_SORT_ASCENDING,  CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SCANDIR_SORT_DESCENDING", PHP_SCANDIR_SORT_DESCENDING, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SCANDIR_SORT_NONE",       PHP_SCANDIR_SORT_NONE,       CONST_PERSISTENT);
 
 #ifdef HAVE_GLOB
 
 #ifdef GLOB_BRACE
-	REGISTER_LONG_CONSTANT("GLOB_BRACE", GLOB_BRACE, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("GLOB_BRACE", GLOB_BRACE, CONST_PERSISTENT);
 #else
 # define GLOB_BRACE 0
 #endif
 
 #ifdef GLOB_MARK
-	REGISTER_LONG_CONSTANT("GLOB_MARK", GLOB_MARK, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("GLOB_MARK", GLOB_MARK, CONST_PERSISTENT);
 #else
 # define GLOB_MARK 0
 #endif
 
 #ifdef GLOB_NOSORT
-	REGISTER_LONG_CONSTANT("GLOB_NOSORT", GLOB_NOSORT, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("GLOB_NOSORT", GLOB_NOSORT, CONST_PERSISTENT);
 #else
 # define GLOB_NOSORT 0
 #endif
 
 #ifdef GLOB_NOCHECK
-	REGISTER_LONG_CONSTANT("GLOB_NOCHECK", GLOB_NOCHECK, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("GLOB_NOCHECK", GLOB_NOCHECK, CONST_PERSISTENT);
 #else
 # define GLOB_NOCHECK 0
 #endif
 
 #ifdef GLOB_NOESCAPE
-	REGISTER_LONG_CONSTANT("GLOB_NOESCAPE", GLOB_NOESCAPE, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("GLOB_NOESCAPE", GLOB_NOESCAPE, CONST_PERSISTENT);
 #else
 # define GLOB_NOESCAPE 0
 #endif
 
 #ifdef GLOB_ERR
-	REGISTER_LONG_CONSTANT("GLOB_ERR", GLOB_ERR, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("GLOB_ERR", GLOB_ERR, CONST_PERSISTENT);
 #else
 # define GLOB_ERR 0
 #endif
@@ -180,8 +184,8 @@ PHP_MINIT_FUNCTION(dir)
 /* This is used for checking validity of passed flags (passing invalid flags causes segfault in glob()!! */
 #define GLOB_AVAILABLE_FLAGS (0 | GLOB_BRACE | GLOB_MARK | GLOB_NOSORT | GLOB_NOCHECK | GLOB_NOESCAPE | GLOB_ERR | GLOB_ONLYDIR)
 
-	REGISTER_LONG_CONSTANT("GLOB_ONLYDIR", GLOB_ONLYDIR, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("GLOB_AVAILABLE_FLAGS", GLOB_AVAILABLE_FLAGS, CONST_CS | CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("GLOB_ONLYDIR", GLOB_ONLYDIR, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("GLOB_AVAILABLE_FLAGS", GLOB_AVAILABLE_FLAGS, CONST_PERSISTENT);
 
 #endif /* HAVE_GLOB */
 
@@ -218,8 +222,8 @@ static void _php_do_opendir(INTERNAL_FUNCTION_PARAMETERS, int createobject)
 
 	if (createobject) {
 		object_init_ex(return_value, dir_class_entry_ptr);
-		add_property_stringl(return_value, "path", dirname, dir_len);
-		add_property_resource(return_value, "handle", dirp->res);
+		ZVAL_STRINGL(Z_DIRECTORY_PATH_P(return_value), dirname, dir_len);
+		ZVAL_RES(Z_DIRECTORY_HANDLE_P(return_value), dirp->res);
 		php_stream_auto_cleanup(dirp); /* so we don't get warnings under debug */
 	} else {
 		php_stream_to_zval(dirp, return_value);
@@ -244,7 +248,7 @@ PHP_FUNCTION(dir)
 /* {{{ Close directory connection identified by the dir_handle */
 PHP_FUNCTION(closedir)
 {
-	zval *id = NULL, *tmp, *myself;
+	zval *id = NULL, *myself;
 	php_stream *dirp;
 	zend_resource *res;
 
@@ -264,7 +268,7 @@ PHP_FUNCTION(closedir)
 }
 /* }}} */
 
-#if defined(HAVE_CHROOT) && !defined(ZTS) && ENABLE_CHROOT_FUNC
+#if defined(HAVE_CHROOT) && !defined(ZTS) && defined(ENABLE_CHROOT_FUNC)
 /* {{{ Change root directory */
 PHP_FUNCTION(chroot)
 {
@@ -338,9 +342,9 @@ PHP_FUNCTION(getcwd)
 
 	ZEND_PARSE_PARAMETERS_NONE();
 
-#if HAVE_GETCWD
+#ifdef HAVE_GETCWD
 	ret = VCWD_GETCWD(path, MAXPATHLEN);
-#elif HAVE_GETWD
+#elif defined(HAVE_GETWD)
 	ret = VCWD_GETWD(path);
 #endif
 
@@ -355,7 +359,7 @@ PHP_FUNCTION(getcwd)
 /* {{{ Rewind dir_handle back to the start */
 PHP_FUNCTION(rewinddir)
 {
-	zval *id = NULL, *tmp, *myself;
+	zval *id = NULL, *myself;
 	php_stream *dirp;
 
 	FETCH_DIRP();
@@ -372,7 +376,7 @@ PHP_FUNCTION(rewinddir)
 /* {{{ Read directory entry from dir_handle */
 PHP_FUNCTION(readdir)
 {
-	zval *id = NULL, *tmp, *myself;
+	zval *id = NULL, *myself;
 	php_stream *dirp;
 	php_stream_dirent entry;
 
@@ -468,18 +472,6 @@ PHP_FUNCTION(glob)
 #ifdef GLOB_NOMATCH
 no_results:
 #endif
-#ifndef PHP_WIN32
-		/* Paths containing '*', '?' and some other chars are
-		illegal on Windows but legit on other platforms. For
-		this reason the direct basedir check against the glob
-		query is senseless on windows. For instance while *.txt
-		is a pretty valid filename on EXT3, it's invalid on NTFS. */
-		if (PG(open_basedir) && *PG(open_basedir)) {
-			if (php_check_open_basedir_ex(pattern, 0)) {
-				RETURN_FALSE;
-			}
-		}
-#endif
 		array_init(return_value);
 		return;
 	}
@@ -501,7 +493,7 @@ no_results:
 		 * able to filter directories out.
 		 */
 		if (flags & GLOB_ONLYDIR) {
-			zend_stat_t s;
+			zend_stat_t s = {0};
 
 			if (0 != VCWD_STAT(globbuf.gl_pathv[n], &s)) {
 				continue;

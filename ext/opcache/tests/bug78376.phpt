@@ -10,10 +10,12 @@ opcache
 --SKIPIF--
 <?php
 if (PHP_OS_FAMILY == 'Windows') die('skip Preloading is not supported on Windows');
+if (PHP_ZTS) die('xfail GH-8588');
 ?>
 --FILE--
 <?php
+const CNST = 'bbbb';
 var_dump(\A::$a);
 ?>
 --EXPECT--
-string(4) "aaaa"
+string(4) "bbbb"

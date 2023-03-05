@@ -39,10 +39,7 @@
 
 /* Convert a numbers to a string.  Base 10 only.*/
 
-zend_string
-*bc_num2str_ex (num, scale)
-      bc_num num;
-	  int scale;
+zend_string *bc_num2str_ex(bc_num num, int scale)
 {
 	zend_string *str;
 	char *sptr;
@@ -50,7 +47,7 @@ zend_string
 	int  index, signch;
 
 	/* Allocate the string memory. */
-	signch = num->n_sign != PLUS;  /* Number of sign chars. */
+	signch = num->n_sign != PLUS && !bc_is_zero_for_scale(num, MIN(num->n_scale, scale));  /* Number of sign chars. */
 	if (scale > 0)
 		str = zend_string_alloc(num->n_len + scale + signch + 1, 0);
 	else

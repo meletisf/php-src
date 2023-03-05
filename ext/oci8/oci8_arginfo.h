@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: caa419a313bfcbf14e179e6f9fc2270b432175b0 */
+ * Stub hash: 850d4e63296c95a27cdfc1244d63b1ed496acd54 */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_oci_define_by_name, 0, 3, _IS_BOOL, 0)
 	ZEND_ARG_INFO(0, statement)
@@ -216,7 +216,7 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_oci_fetch_all, 0, 2, IS_LONG, 0)
 	ZEND_ARG_INFO(1, output)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, offset, IS_LONG, 0, "0")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, limit, IS_LONG, 0, "-1")
-	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flags, IS_LONG, 0, "0")
+	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flags, IS_LONG, 0, "OCI_FETCHSTATEMENT_BY_COLUMN | OCI_ASSOC")
 ZEND_END_ARG_INFO()
 
 #define arginfo_ocifetchstatement arginfo_oci_fetch_all
@@ -298,6 +298,11 @@ ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_oci_set_prefetch, 0, 2, _IS_BOOL
 ZEND_END_ARG_INFO()
 
 #define arginfo_ocisetprefetch arginfo_oci_set_prefetch
+
+ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_oci_set_prefetch_lob, 0, 2, _IS_BOOL, 0)
+	ZEND_ARG_INFO(0, statement)
+	ZEND_ARG_TYPE_INFO(0, prefetch_lob_size, IS_LONG, 0)
+ZEND_END_ARG_INFO()
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_oci_set_client_identifier, 0, 2, _IS_BOOL, 0)
 	ZEND_ARG_INFO(0, connection)
@@ -447,7 +452,7 @@ ZEND_BEGIN_ARG_WITH_TENTATIVE_RETURN_TYPE_INFO_EX(arginfo_class_OCILob_import, 0
 	ZEND_ARG_TYPE_INFO(0, filename, IS_STRING, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_OCILob_savefile arginfo_class_OCILob_import
+#define arginfo_class_OCILob_saveFile arginfo_class_OCILob_import
 
 ZEND_BEGIN_ARG_WITH_TENTATIVE_RETURN_TYPE_MASK_EX(arginfo_class_OCILob_load, 0, 0, MAY_BE_STRING|MAY_BE_FALSE)
 ZEND_END_ARG_INFO()
@@ -493,21 +498,21 @@ ZEND_BEGIN_ARG_WITH_TENTATIVE_RETURN_TYPE_INFO_EX(arginfo_class_OCILob_flush, 0,
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, flag, IS_LONG, 0, "0")
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_TENTATIVE_RETURN_TYPE_INFO_EX(arginfo_class_OCILob_setbuffering, 0, 1, _IS_BOOL, 0)
+ZEND_BEGIN_ARG_WITH_TENTATIVE_RETURN_TYPE_INFO_EX(arginfo_class_OCILob_setBuffering, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, mode, _IS_BOOL, 0)
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_OCILob_getbuffering arginfo_class_OCILob_eof
+#define arginfo_class_OCILob_getBuffering arginfo_class_OCILob_eof
 
-ZEND_BEGIN_ARG_WITH_TENTATIVE_RETURN_TYPE_INFO_EX(arginfo_class_OCILob_writetofile, 0, 1, _IS_BOOL, 0)
+ZEND_BEGIN_ARG_WITH_TENTATIVE_RETURN_TYPE_INFO_EX(arginfo_class_OCILob_writeToFile, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, filename, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, offset, IS_LONG, 1, "null")
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, length, IS_LONG, 1, "null")
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_OCILob_export arginfo_class_OCILob_writetofile
+#define arginfo_class_OCILob_export arginfo_class_OCILob_writeToFile
 
-ZEND_BEGIN_ARG_WITH_TENTATIVE_RETURN_TYPE_INFO_EX(arginfo_class_OCILob_writetemporary, 0, 1, _IS_BOOL, 0)
+ZEND_BEGIN_ARG_WITH_TENTATIVE_RETURN_TYPE_INFO_EX(arginfo_class_OCILob_writeTemporary, 0, 1, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, data, IS_STRING, 0)
 	ZEND_ARG_TYPE_INFO_WITH_DEFAULT_VALUE(0, type, IS_LONG, 0, "OCI_TEMP_CLOB")
 ZEND_END_ARG_INFO()
@@ -530,7 +535,7 @@ ZEND_BEGIN_ARG_WITH_TENTATIVE_RETURN_TYPE_INFO_EX(arginfo_class_OCICollection_as
 	ZEND_ARG_OBJ_INFO(0, from, OCICollection, 0)
 ZEND_END_ARG_INFO()
 
-ZEND_BEGIN_ARG_WITH_TENTATIVE_RETURN_TYPE_INFO_EX(arginfo_class_OCICollection_assignelem, 0, 2, _IS_BOOL, 0)
+ZEND_BEGIN_ARG_WITH_TENTATIVE_RETURN_TYPE_INFO_EX(arginfo_class_OCICollection_assignElem, 0, 2, _IS_BOOL, 0)
 	ZEND_ARG_TYPE_INFO(0, index, IS_LONG, 0)
 	ZEND_ARG_TYPE_INFO(0, value, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -596,6 +601,7 @@ ZEND_FUNCTION(oci_num_fields);
 ZEND_FUNCTION(oci_parse);
 ZEND_FUNCTION(oci_get_implicit_resultset);
 ZEND_FUNCTION(oci_set_prefetch);
+ZEND_FUNCTION(oci_set_prefetch_lob);
 ZEND_FUNCTION(oci_set_client_identifier);
 ZEND_FUNCTION(oci_set_edition);
 ZEND_FUNCTION(oci_set_module_name);
@@ -621,7 +627,7 @@ ZEND_FUNCTION(oci_collection_trim);
 ZEND_FUNCTION(oci_new_collection);
 ZEND_FUNCTION(oci_register_taf_callback);
 ZEND_FUNCTION(oci_unregister_taf_callback);
-ZEND_METHOD(OCILob, writetemporary);
+ZEND_METHOD(OCILob, writeTemporary);
 ZEND_METHOD(OCILob, close);
 
 
@@ -710,6 +716,7 @@ static const zend_function_entry ext_functions[] = {
 	ZEND_FE(oci_get_implicit_resultset, arginfo_oci_get_implicit_resultset)
 	ZEND_FE(oci_set_prefetch, arginfo_oci_set_prefetch)
 	ZEND_DEP_FALIAS(ocisetprefetch, oci_set_prefetch, arginfo_ocisetprefetch)
+	ZEND_FE(oci_set_prefetch_lob, arginfo_oci_set_prefetch_lob)
 	ZEND_FE(oci_set_client_identifier, arginfo_oci_set_client_identifier)
 	ZEND_FE(oci_set_edition, arginfo_oci_set_edition)
 	ZEND_FE(oci_set_module_name, arginfo_oci_set_module_name)
@@ -756,7 +763,7 @@ static const zend_function_entry ext_functions[] = {
 static const zend_function_entry class_OCILob_methods[] = {
 	ZEND_ME_MAPPING(save, oci_lob_save, arginfo_class_OCILob_save, ZEND_ACC_PUBLIC)
 	ZEND_ME_MAPPING(import, oci_lob_import, arginfo_class_OCILob_import, ZEND_ACC_PUBLIC)
-	ZEND_ME_MAPPING(savefile, oci_lob_import, arginfo_class_OCILob_savefile, ZEND_ACC_PUBLIC)
+	ZEND_ME_MAPPING(saveFile, oci_lob_import, arginfo_class_OCILob_saveFile, ZEND_ACC_PUBLIC)
 	ZEND_ME_MAPPING(load, oci_lob_load, arginfo_class_OCILob_load, ZEND_ACC_PUBLIC)
 	ZEND_ME_MAPPING(read, oci_lob_read, arginfo_class_OCILob_read, ZEND_ACC_PUBLIC)
 	ZEND_ME_MAPPING(eof, oci_lob_eof, arginfo_class_OCILob_eof, ZEND_ACC_PUBLIC)
@@ -769,11 +776,11 @@ static const zend_function_entry class_OCILob_methods[] = {
 	ZEND_ME_MAPPING(truncate, oci_lob_truncate, arginfo_class_OCILob_truncate, ZEND_ACC_PUBLIC)
 	ZEND_ME_MAPPING(erase, oci_lob_erase, arginfo_class_OCILob_erase, ZEND_ACC_PUBLIC)
 	ZEND_ME_MAPPING(flush, oci_lob_flush, arginfo_class_OCILob_flush, ZEND_ACC_PUBLIC)
-	ZEND_ME_MAPPING(setbuffering, ocisetbufferinglob, arginfo_class_OCILob_setbuffering, ZEND_ACC_PUBLIC)
-	ZEND_ME_MAPPING(getbuffering, ocigetbufferinglob, arginfo_class_OCILob_getbuffering, ZEND_ACC_PUBLIC)
-	ZEND_ME_MAPPING(writetofile, oci_lob_export, arginfo_class_OCILob_writetofile, ZEND_ACC_PUBLIC)
+	ZEND_ME_MAPPING(setBuffering, ocisetbufferinglob, arginfo_class_OCILob_setBuffering, ZEND_ACC_PUBLIC)
+	ZEND_ME_MAPPING(getBuffering, ocigetbufferinglob, arginfo_class_OCILob_getBuffering, ZEND_ACC_PUBLIC)
+	ZEND_ME_MAPPING(writeToFile, oci_lob_export, arginfo_class_OCILob_writeToFile, ZEND_ACC_PUBLIC)
 	ZEND_ME_MAPPING(export, oci_lob_export, arginfo_class_OCILob_export, ZEND_ACC_PUBLIC)
-	ZEND_ME(OCILob, writetemporary, arginfo_class_OCILob_writetemporary, ZEND_ACC_PUBLIC)
+	ZEND_ME(OCILob, writeTemporary, arginfo_class_OCILob_writeTemporary, ZEND_ACC_PUBLIC)
 	ZEND_ME(OCILob, close, arginfo_class_OCILob_close, ZEND_ACC_PUBLIC)
 	ZEND_ME_MAPPING(free, oci_free_descriptor, arginfo_class_OCILob_free, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
@@ -785,12 +792,106 @@ static const zend_function_entry class_OCICollection_methods[] = {
 	ZEND_ME_MAPPING(append, oci_collection_append, arginfo_class_OCICollection_append, ZEND_ACC_PUBLIC)
 	ZEND_ME_MAPPING(getElem, oci_collection_element_get, arginfo_class_OCICollection_getElem, ZEND_ACC_PUBLIC)
 	ZEND_ME_MAPPING(assign, oci_collection_assign, arginfo_class_OCICollection_assign, ZEND_ACC_PUBLIC)
-	ZEND_ME_MAPPING(assignelem, oci_collection_element_assign, arginfo_class_OCICollection_assignelem, ZEND_ACC_PUBLIC)
+	ZEND_ME_MAPPING(assignElem, oci_collection_element_assign, arginfo_class_OCICollection_assignElem, ZEND_ACC_PUBLIC)
 	ZEND_ME_MAPPING(size, oci_collection_size, arginfo_class_OCICollection_size, ZEND_ACC_PUBLIC)
 	ZEND_ME_MAPPING(max, oci_collection_max, arginfo_class_OCICollection_max, ZEND_ACC_PUBLIC)
 	ZEND_ME_MAPPING(trim, oci_collection_trim, arginfo_class_OCICollection_trim, ZEND_ACC_PUBLIC)
 	ZEND_FE_END
 };
+
+static void register_oci8_symbols(int module_number)
+{
+	REGISTER_LONG_CONSTANT("OCI_DEFAULT", OCI_DEFAULT, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_SYSOPER", OCI_SYSOPER, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_SYSDBA", OCI_SYSDBA, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_CRED_EXT", PHP_OCI_CRED_EXT, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_DESCRIBE_ONLY", OCI_DESCRIBE_ONLY, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_COMMIT_ON_SUCCESS", OCI_COMMIT_ON_SUCCESS, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_NO_AUTO_COMMIT", OCI_DEFAULT, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_EXACT_FETCH", OCI_EXACT_FETCH, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_SEEK_SET", PHP_OCI_SEEK_SET, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_SEEK_CUR", PHP_OCI_SEEK_CUR, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_SEEK_END", PHP_OCI_SEEK_END, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_LOB_BUFFER_FREE", OCI_LOB_BUFFER_FREE, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_BFILEE", SQLT_BFILEE, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_CFILEE", SQLT_CFILEE, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_CLOB", SQLT_CLOB, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_BLOB", SQLT_BLOB, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_RDD", SQLT_RDD, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_INT", SQLT_INT, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_NUM", SQLT_NUM, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_RSET", SQLT_RSET, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_AFC", SQLT_AFC, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_CHR", SQLT_CHR, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_VCS", SQLT_VCS, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_AVC", SQLT_AVC, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_STR", SQLT_STR, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_LVC", SQLT_LVC, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_FLT", SQLT_FLT, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_UIN", SQLT_UIN, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_LNG", SQLT_LNG, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_LBI", SQLT_LBI, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_BIN", SQLT_BIN, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_ODT", SQLT_ODT, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_BDOUBLE", SQLT_BDOUBLE, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_BFLOAT", SQLT_BFLOAT, CONST_PERSISTENT);
+#if OCI_MAJOR_VERSION >= 12
+	REGISTER_LONG_CONSTANT("SQLT_BOL", SQLT_BOL, CONST_PERSISTENT);
+#endif
+	REGISTER_LONG_CONSTANT("OCI_B_NTY", SQLT_NTY, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("SQLT_NTY", SQLT_NTY, CONST_PERSISTENT);
+	REGISTER_STRING_CONSTANT("OCI_SYSDATE", "SYSDATE", CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_B_BFILE", SQLT_BFILEE, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_B_CFILEE", SQLT_CFILEE, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_B_CLOB", SQLT_CLOB, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_B_BLOB", SQLT_BLOB, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_B_ROWID", SQLT_RDD, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_B_CURSOR", SQLT_RSET, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_B_BIN", SQLT_BIN, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_B_INT", SQLT_INT, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_B_NUM", SQLT_NUM, CONST_PERSISTENT);
+#if OCI_MAJOR_VERSION >= 12
+	REGISTER_LONG_CONSTANT("OCI_B_BOL", SQLT_BOL, CONST_PERSISTENT);
+#endif
+	REGISTER_LONG_CONSTANT("OCI_FETCHSTATEMENT_BY_COLUMN", PHP_OCI_FETCHSTATEMENT_BY_COLUMN, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_FETCHSTATEMENT_BY_ROW", PHP_OCI_FETCHSTATEMENT_BY_ROW, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_ASSOC", PHP_OCI_ASSOC, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_NUM", PHP_OCI_NUM, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_BOTH", PHP_OCI_BOTH, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_RETURN_NULLS", PHP_OCI_RETURN_NULLS, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_RETURN_LOBS", PHP_OCI_RETURN_LOBS, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_DTYPE_FILE", OCI_DTYPE_FILE, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_DTYPE_LOB", OCI_DTYPE_LOB, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_DTYPE_ROWID", OCI_DTYPE_ROWID, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_D_FILE", OCI_DTYPE_FILE, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_D_LOB", OCI_DTYPE_LOB, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_D_ROWID", OCI_DTYPE_ROWID, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_TEMP_CLOB", OCI_TEMP_CLOB, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_TEMP_BLOB", OCI_TEMP_BLOB, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_FO_END", OCI_FO_END, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_FO_ABORT", OCI_FO_ABORT, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_FO_REAUTH", OCI_FO_REAUTH, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_FO_BEGIN", OCI_FO_BEGIN, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_FO_ERROR", OCI_FO_ERROR, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_FO_NONE", OCI_FO_NONE, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_FO_SESSION", OCI_FO_SESSION, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_FO_SELECT", OCI_FO_SELECT, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_FO_TXNAL", OCI_FO_TXNAL, CONST_PERSISTENT);
+	REGISTER_LONG_CONSTANT("OCI_FO_RETRY", OCI_FO_RETRY, CONST_PERSISTENT);
+
+
+	zend_add_parameter_attribute(zend_hash_str_find_ptr(CG(function_table), "oci_new_connect", sizeof("oci_new_connect") - 1), 1, ZSTR_KNOWN(ZEND_STR_SENSITIVEPARAMETER), 0);
+
+	zend_add_parameter_attribute(zend_hash_str_find_ptr(CG(function_table), "ocinlogon", sizeof("ocinlogon") - 1), 1, ZSTR_KNOWN(ZEND_STR_SENSITIVEPARAMETER), 0);
+
+	zend_add_parameter_attribute(zend_hash_str_find_ptr(CG(function_table), "oci_connect", sizeof("oci_connect") - 1), 1, ZSTR_KNOWN(ZEND_STR_SENSITIVEPARAMETER), 0);
+
+	zend_add_parameter_attribute(zend_hash_str_find_ptr(CG(function_table), "ocilogon", sizeof("ocilogon") - 1), 1, ZSTR_KNOWN(ZEND_STR_SENSITIVEPARAMETER), 0);
+
+	zend_add_parameter_attribute(zend_hash_str_find_ptr(CG(function_table), "oci_pconnect", sizeof("oci_pconnect") - 1), 1, ZSTR_KNOWN(ZEND_STR_SENSITIVEPARAMETER), 0);
+
+	zend_add_parameter_attribute(zend_hash_str_find_ptr(CG(function_table), "ociplogon", sizeof("ociplogon") - 1), 1, ZSTR_KNOWN(ZEND_STR_SENSITIVEPARAMETER), 0);
+}
 
 static zend_class_entry *register_class_OCILob(void)
 {
@@ -798,6 +899,11 @@ static zend_class_entry *register_class_OCILob(void)
 
 	INIT_CLASS_ENTRY(ce, "OCILob", class_OCILob_methods);
 	class_entry = zend_register_internal_class_ex(&ce, NULL);
+	class_entry->ce_flags |= ZEND_ACC_ALLOW_DYNAMIC_PROPERTIES;
+
+	zend_string *attribute_name_AllowDynamicProperties_class_OCILob = zend_string_init_interned("AllowDynamicProperties", sizeof("AllowDynamicProperties") - 1, 1);
+	zend_add_class_attribute(class_entry, attribute_name_AllowDynamicProperties_class_OCILob, 0);
+	zend_string_release(attribute_name_AllowDynamicProperties_class_OCILob);
 
 	return class_entry;
 }
@@ -808,6 +914,11 @@ static zend_class_entry *register_class_OCICollection(void)
 
 	INIT_CLASS_ENTRY(ce, "OCICollection", class_OCICollection_methods);
 	class_entry = zend_register_internal_class_ex(&ce, NULL);
+	class_entry->ce_flags |= ZEND_ACC_ALLOW_DYNAMIC_PROPERTIES;
+
+	zend_string *attribute_name_AllowDynamicProperties_class_OCICollection = zend_string_init_interned("AllowDynamicProperties", sizeof("AllowDynamicProperties") - 1, 1);
+	zend_add_class_attribute(class_entry, attribute_name_AllowDynamicProperties_class_OCICollection, 0);
+	zend_string_release(attribute_name_AllowDynamicProperties_class_OCICollection);
 
 	return class_entry;
 }

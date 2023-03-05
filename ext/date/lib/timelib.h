@@ -1,7 +1,7 @@
 /*
  * The MIT License (MIT)
  *
- * Copyright (c) 2015-2021 Derick Rethans
+ * Copyright (c) 2015-2023 Derick Rethans
  * Copyright (c) 2018,2021 MongoDB, Inc.
  *
  * Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -29,6 +29,10 @@
 #ifdef HAVE_TIMELIB_CONFIG_H
 # include "timelib_config.h"
 #endif
+
+#define TIMELIB_VERSION 202205
+#define TIMELIB_EXTENDED_VERSION 20220501
+#define TIMELIB_ASCII_VERSION "2022.05"
 
 #include <stdlib.h>
 #include <stdbool.h>
@@ -176,6 +180,12 @@ typedef struct _timelib_posix_str
 	int type_index_dst_type;  // index into tz->type
 } timelib_posix_str;
 
+typedef struct _timelib_posix_transitions {
+	size_t      count;
+	timelib_sll times[6];
+	timelib_sll types[6];
+} timelib_posix_transitions;
+
 typedef struct _timelib_tzinfo
 {
 	char    *name;
@@ -311,6 +321,7 @@ typedef struct _timelib_abbr_info {
 #define TIMELIB_ERR_INVALID_TZ_OFFSET          0x223
 #define TIMELIB_ERR_FORMAT_LITERAL_MISMATCH    0x224
 #define TIMELIB_ERR_MIX_ISO_WITH_NATURAL       0x225
+#define TIMELIB_ERR_NUMBER_OUT_OF_RANGE        0x226
 
 #define TIMELIB_ZONETYPE_NONE   0
 #define TIMELIB_ZONETYPE_OFFSET 1
@@ -332,10 +343,10 @@ typedef struct _timelib_error_container {
 } timelib_error_container;
 
 typedef struct _timelib_tz_lookup_table {
-	char       *name;
+	const char *name;
 	int         type;
 	float       gmtoffset;
-	char       *full_tz_name;
+	const char *full_tz_name;
 } timelib_tz_lookup_table;
 
 typedef struct _timelib_tzdb_index_entry {
@@ -344,7 +355,7 @@ typedef struct _timelib_tzdb_index_entry {
 } timelib_tzdb_index_entry;
 
 typedef struct _timelib_tzdb {
-	char                           *version;
+	const char                     *version;
 	int                             index_size;
 	const timelib_tzdb_index_entry *index;
 	const unsigned char            *data;
@@ -355,13 +366,14 @@ typedef struct _timelib_tzdb {
 # define timelib_realloc realloc
 # define timelib_calloc  calloc
 # define timelib_strdup  strdup
-# define timelib_strndup strndup
 # define timelib_free    free
+# if defined(WIN32) || defined(_WIN32) || defined(__WIN32) && !defined(__CYGWIN__)
+#  define TIMELIB_USE_BUILTIN_STRNDUP 1
+# else
+#  define TIMELIB_USE_BUILTIN_STRNDUP 0
+#  define timelib_strndup strndup
+# endif
 #endif
-
-#define TIMELIB_VERSION 202103
-#define TIMELIB_EXTENDED_VERSION 20210301
-#define TIMELIB_ASCII_VERSION "2021.03"
 
 #define TIMELIB_NONE             0x00
 #define TIMELIB_OVERRIDE_TIME    0x01
@@ -370,7 +382,8 @@ typedef struct _timelib_tzdb {
 #define TIMELIB_UNSET   -99999
 
 /* An entry for each of these error codes is also in the
- * timelib_error_messages array in timelib.c */
+ * timelib_error_messages array in timelib.c.
+ * Codes 0x00, 0x07, and 0x09 are warnings only. */
 #define TIMELIB_ERROR_NO_ERROR                            0x00
 #define TIMELIB_ERROR_CANNOT_ALLOCATE                     0x01
 #define TIMELIB_ERROR_CORRUPT_TRANSITIONS_DONT_INCREASE   0x02
@@ -378,8 +391,9 @@ typedef struct _timelib_tzdb {
 #define TIMELIB_ERROR_CORRUPT_NO_ABBREVIATION             0x04
 #define TIMELIB_ERROR_UNSUPPORTED_VERSION                 0x05
 #define TIMELIB_ERROR_NO_SUCH_TIMEZONE                    0x06
-#define TIMELIB_ERROR_SLIM_FILE                           0x07
-#define TIMELIB_ERROR_POSIX_MISSING_TTINFO                0x08
+#define TIMELIB_ERROR_SLIM_FILE                           0x07 /* Warns if the file is SLIM, but we can't read it */
+#define TIMELIB_ERROR_CORRUPT_POSIX_STRING                0x08
+#define TIMELIB_ERROR_EMPTY_POSIX_STRING                  0x09 /* Warns if the POSIX string is empty, but still produces results */
 
 #ifdef __cplusplus
 extern "C" {
@@ -425,6 +439,7 @@ typedef enum _timelib_format_specifier_code {
 	TIMELIB_FORMAT_WHITESPACE,
 	TIMELIB_FORMAT_YEAR_TWO_DIGIT,
 	TIMELIB_FORMAT_YEAR_FOUR_DIGIT,
+	TIMELIB_FORMAT_YEAR_EXPANDED,
 	TIMELIB_FORMAT_YEAR_ISO
 } timelib_format_specifier_code;
 
@@ -570,7 +585,7 @@ void timelib_fill_holes(timelib_time *parsed, timelib_time *now, int options);
  *
  * The returned char* is not duplicated, and should not be freed.
  */
-char *timelib_timezone_id_from_abbr(const char *abbr, timelib_long gmtoffset, int isdst);
+const char *timelib_timezone_id_from_abbr(const char *abbr, timelib_long gmtoffset, int isdst);
 
 /* Returns an array of known time zone abbreviations
  *
@@ -780,11 +795,34 @@ int timelib_timestamp_is_in_dst(timelib_sll ts, timelib_tzinfo *tz);
 timelib_time_offset *timelib_get_time_zone_info(timelib_sll ts, timelib_tzinfo *tz);
 
 /**
+ * Returns offset information with time zone 'tz' for the time stamp 'ts'.
+ *
+ * The returned information contains: the offset in seconds East of UTC (in
+ * the output parameter 'offset'), whether DST is active (in the output
+ * parameter 'is_dst'), and the transition time that got to this state (in
+ * the output parameter 'transition_time'); if NULL is passed, the value is
+ * not retrieved
+ *
+ * Returns 1 if successful, 0 for failure.
+ */
+int timelib_get_time_zone_offset_info(timelib_sll ts, timelib_tzinfo *tz, int32_t* offset, timelib_sll* transition_time, unsigned int* is_dst);
+
+/**
  * Returns the UTC offset currently applicable for the information stored in 't'.
  *
  * The value returned is the UTC offset in seconds East.
  */
 timelib_sll timelib_get_current_offset(timelib_time *t);
+
+/**
+ * Returns whether the timezone information in *one and *two are the same
+ *
+ * A timezone is considered the same if:
+ * - the ->zone_type values are the same for *one and *two
+ * - for TYPE_ABBR and TYPE_OFFSET, ->z + (->dst * 3600), is the same
+ * - for TYPE_ID, the zone's names are the same
+ */
+int timelib_same_timezone(timelib_time *one, timelib_time *two);
 
 /**
  * Displays debugging information about the time zone information in 'tz'.
@@ -949,6 +987,11 @@ void timelib_decimal_hour_to_hms(double h, int *hour, int *min, int *sec);
 void timelib_hms_to_decimal_hour(int hour, int min, int sec, double *h);
 
 /**
+ * Converts hour/min/sec/micro sec values into a decimal hour
+ */
+void timelib_hmsf_to_decimal_hour(int hour, int min, int sec, int us, double *h);
+
+/**
  * Converts hour/min/sec values into seconds
  */
 timelib_sll timelib_hms_to_seconds(timelib_sll h, timelib_sll m, timelib_sll s);
@@ -1015,6 +1058,15 @@ int timelib_astro_rise_set_altitude(timelib_time *time, double lon, double lat, 
 timelib_rel_time *timelib_diff(timelib_time *one, timelib_time *two);
 
 /**
+ * Calculates the difference in full days between two times
+ *
+ * The result is the number of full days between 'one' and 'two'. It does take
+ * into account 23 and 25 hour (and variants) days when the zone_type
+ * is TIMELIB_ZONETYPE_ID and have the same TZID for 'one' and 'two'.
+ */
+int timelib_diff_days(timelib_time *one, timelib_time *two);
+
+/**
  * Adds the relative time information 'interval' to the base time 't'.
  *
  * This can be a relative time as created by 'timelib_diff', but also by more
@@ -1038,6 +1090,12 @@ timelib_time *timelib_sub_wall(timelib_time *t, timelib_rel_time *interval);
 void timelib_posix_str_dtor(timelib_posix_str *ps);
 
 timelib_posix_str* timelib_parse_posix_str(const char *posix);
+
+/**
+ * Calculate the two yearly to/from DST
+ */
+void timelib_get_transitions_for_year(timelib_tzinfo *tz, timelib_sll year, timelib_posix_transitions *transitions);
+
 
 #ifdef __cplusplus
 } /* extern "C" */

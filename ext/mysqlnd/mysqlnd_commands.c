@@ -107,11 +107,7 @@ MYSQLND_METHOD(mysqlnd_command, init_db)(MYSQLND_CONN_DATA * const conn, const M
 	*/
 	UPSERT_STATUS_SET_AFFECTED_ROWS_TO_ERROR(conn->upsert_status);
 	if (ret == PASS) {
-		if (conn->connect_or_select_db.s) {
-			mnd_pefree(conn->connect_or_select_db.s, conn->persistent);
-		}
-		conn->connect_or_select_db.s = mnd_pestrndup(db.s, db.l, conn->persistent);
-		conn->connect_or_select_db.l = db.l;
+		mysqlnd_set_persistent_string(&conn->connect_or_select_db, db.s, db.l, conn->persistent);
 	}
 
 	DBG_RETURN(ret);
@@ -246,35 +242,6 @@ MYSQLND_METHOD(mysqlnd_command, refresh)(MYSQLND_CONN_DATA * const conn, const u
 					   conn);
 	if (PASS == ret) {
 		ret = send_command_handle_response(conn->payload_decoder_factory, PROT_OK_PACKET, FALSE, COM_REFRESH, TRUE,
-										   conn->error_info, conn->upsert_status, &conn->last_message);
-	}
-
-	DBG_RETURN(ret);
-}
-/* }}} */
-
-
-/* {{{ mysqlnd_command::shutdown */
-static enum_func_status
-MYSQLND_METHOD(mysqlnd_command, shutdown)(MYSQLND_CONN_DATA * const conn, const uint8_t level)
-{
-	const func_mysqlnd_protocol_payload_decoder_factory__send_command send_command = conn->payload_decoder_factory->m.send_command;
-	const func_mysqlnd_protocol_payload_decoder_factory__send_command_handle_response send_command_handle_response = conn->payload_decoder_factory->m.send_command_handle_response;
-	zend_uchar bits[1];
-	enum_func_status ret = FAIL;
-
-	DBG_ENTER("mysqlnd_command::shutdown");
-	int1store(bits, level);
-
-	ret = send_command(conn->payload_decoder_factory, COM_SHUTDOWN, bits, 1, FALSE,
-					   &conn->state,
-					   conn->error_info,
-					   conn->upsert_status,
-					   conn->stats,
-					   conn->m->send_close,
-					   conn);
-	if (PASS == ret) {
-		ret = send_command_handle_response(conn->payload_decoder_factory, PROT_OK_PACKET, FALSE, COM_SHUTDOWN, TRUE,
 										   conn->error_info, conn->upsert_status, &conn->last_message);
 	}
 
@@ -684,7 +651,6 @@ MYSQLND_CLASS_METHODS_START(mysqlnd_command)
 	MYSQLND_METHOD(mysqlnd_command, statistics),
 	MYSQLND_METHOD(mysqlnd_command, process_kill),
 	MYSQLND_METHOD(mysqlnd_command, refresh),
-	MYSQLND_METHOD(mysqlnd_command, shutdown),
 	MYSQLND_METHOD(mysqlnd_command, quit),
 	MYSQLND_METHOD(mysqlnd_command, query),
 	MYSQLND_METHOD(mysqlnd_command, change_user),

@@ -9,7 +9,7 @@
 #include <arpa/inet.h>
 #endif
 
-extern int php_string_to_if_index(const char *val, unsigned *out);
+extern zend_result php_string_to_if_index(const char *val, unsigned *out);
 
 #if HAVE_IPV6
 /* Sets addr by hostname, or by ip in string form (AF_INET6) */
@@ -60,10 +60,12 @@ int php_set_inet6_addr(struct sockaddr_in6 *sin6, char *string, php_socket *php_
 
 	}
 
-	if (scope++) {
+	if (scope) {
 		zend_long lval = 0;
 		double dval = 0;
 		unsigned scope_id = 0;
+
+		scope++;
 
 		if (IS_LONG == is_numeric_string(scope, strlen(scope), &lval, &dval, 0)) {
 			if (lval > 0 && (zend_ulong)lval <= UINT_MAX) {

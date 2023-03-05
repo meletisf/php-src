@@ -20,7 +20,6 @@
 
 #include "php.h"
 #include "phpdbg.h"
-#include "phpdbg_opcode.h"
 #include "phpdbg_utils.h"
 #include "ext/standard/php_string.h"
 
@@ -200,7 +199,7 @@ PHPDBG_API char *phpdbg_trim(const char *str, size_t len, size_t *new_len) /* {{
 	const char *p = str;
 	char *new = NULL;
 
-	while (p && isspace(*p)) {
+	while (isspace(*p)) {
 		++p;
 		--len;
 	}
@@ -299,6 +298,23 @@ PHPDBG_API const char *phpdbg_get_prompt(void) /* {{{ */
 	/* find cached prompt */
 	if (PHPDBG_G(prompt)[1]) {
 		return PHPDBG_G(prompt)[1];
+	}
+
+	uint32_t pos = 0,
+			 end = strlen(PHPDBG_G(prompt)[0]);
+	bool unicode_warned = false;
+
+	while (pos < end) {
+		if (PHPDBG_G(prompt)[0][pos] & 0x80) {
+			PHPDBG_G(prompt)[0][pos] = '?';
+
+			if (!unicode_warned) {
+				zend_error(E_WARNING,
+					"prompt contains unsupported unicode characters");
+				unicode_warned = true;
+			}
+		}
+		pos++;
 	}
 
 	/* create cached prompt */
@@ -450,6 +466,9 @@ PHPDBG_API int phpdbg_parse_variable_with_arg(char *input, size_t len, HashTable
 				case ']':
 					break;
 				case '>':
+					if (!last_index) {
+						goto error;
+					}
 					if (last_index[index_len - 1] == '-') {
 						new_index = 1;
 						index_len--;
@@ -595,7 +614,7 @@ PHPDBG_API bool phpdbg_check_caught_ex(zend_execute_data *execute_data, zend_obj
 	uint32_t op_num, i;
 	zend_op_array *op_array = &execute_data->func->op_array;
 
-	if (execute_data->opline >= EG(exception_op) && execute_data->opline < EG(exception_op) + 3) {
+	if (execute_data->opline >= EG(exception_op) && execute_data->opline < EG(exception_op) + 3 && EG(opline_before_exception)) {
 		op = EG(opline_before_exception);
 	} else {
 		op = execute_data->opline;
@@ -686,7 +705,7 @@ char *phpdbg_short_zval_print(zval *zv, int maxlen) /* {{{ */
 			zend_string_release(str);
 			} break;
 		case IS_RESOURCE:
-			spprintf(&decode, 0, "Rsrc #%d", Z_RES_HANDLE_P(zv));
+			spprintf(&decode, 0, "Rsrc #" ZEND_LONG_FMT, Z_RES_HANDLE_P(zv));
 			break;
 		case IS_ARRAY:
 			spprintf(&decode, 0, "array(%d)", zend_hash_num_elements(Z_ARR_P(zv)));

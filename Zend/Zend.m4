@@ -146,36 +146,31 @@ _LT_AC_TRY_DLOPEN_SELF([
 ])
 
 dnl Checks for library functions.
-AC_CHECK_FUNCS(getpid kill sigsetjmp)
+AC_CHECK_FUNCS(getpid kill sigsetjmp pthread_getattr_np pthread_attr_get_np pthread_get_stackaddr_np pthread_attr_getstack gettid)
 
-ZEND_CHECK_FLOAT_PRECISION
-
-dnl Test whether double cast to long preserves least significant bits.
-AC_MSG_CHECKING(whether double cast to long preserves least significant bits)
+dnl Test whether the stack grows downwards
+dnl Assumes contiguous stack
+AC_MSG_CHECKING(whether the stack grows downwards)
 
 AC_RUN_IFELSE([AC_LANG_SOURCE([[
-#include <limits.h>
-#include <stdlib.h>
+#include <stdint.h>
 
-int main()
-{
-	if (sizeof(long) == 4) {
-		double d = (double) LONG_MIN * LONG_MIN + 2e9;
+int (*volatile f)(uintptr_t);
 
-		if ((long) d == 2e9 && (long) -d == -2e9) {
-			return 0;
-		}
-	} else if (sizeof(long) == 8) {
-		double correct = 18e18 - ((double) LONG_MIN * -2); /* Subtract ULONG_MAX + 1 */
+int stack_grows_downwards(uintptr_t arg) {
+    int local;
+    return (uintptr_t)&local < arg;
+}
 
-		if ((long) 18e18 == correct) { /* On 64-bit, only check between LONG_MAX and ULONG_MAX */
-			return 0;
-		}
-	}
-	return 1;
+int main() {
+    int local;
+
+    f = stack_grows_downwards;
+    return f((uintptr_t)&local) ? 0 : 1;
 }
 ]])], [
-  AC_DEFINE([ZEND_DVAL_TO_LVAL_CAST_OK], 1, [Define if double cast to long preserves least significant bits])
+  AC_DEFINE([ZEND_STACK_GROWS_DOWNWARDS], 1, [Define if the stack grows downwards])
+  AC_DEFINE([ZEND_CHECK_STACK_LIMIT], 1, [Define if checking the stack limit is supported])
   AC_MSG_RESULT(yes)
 ], [
   AC_MSG_RESULT(no)
@@ -183,6 +178,7 @@ int main()
   AC_MSG_RESULT(no)
 ])
 
+ZEND_CHECK_FLOAT_PRECISION
 ])
 
 dnl
@@ -256,7 +252,7 @@ typedef union _mm_align_test {
 
 int main()
 {
-  int i = ZEND_MM_ALIGNMENT;
+  size_t i = ZEND_MM_ALIGNMENT;
   int zeros = 0;
   FILE *fp;
 
@@ -266,7 +262,7 @@ int main()
   }
 
   fp = fopen("conftest.zend", "w");
-  fprintf(fp, "%d %d\n", ZEND_MM_ALIGNMENT, zeros);
+  fprintf(fp, "(size_t)%zu (size_t)%d %d\n", ZEND_MM_ALIGNMENT, zeros, ZEND_MM_ALIGNMENT < 4);
   fclose(fp);
 
   return 0;
@@ -274,12 +270,15 @@ int main()
 ]])], [
   LIBZEND_MM_ALIGN=`cat conftest.zend | cut -d ' ' -f 1`
   LIBZEND_MM_ALIGN_LOG2=`cat conftest.zend | cut -d ' ' -f 2`
+  LIBZEND_MM_NEED_EIGHT_BYTE_REALIGNMENT=`cat conftest.zend | cut -d ' ' -f 3`
   AC_DEFINE_UNQUOTED(ZEND_MM_ALIGNMENT, $LIBZEND_MM_ALIGN, [ ])
   AC_DEFINE_UNQUOTED(ZEND_MM_ALIGNMENT_LOG2, $LIBZEND_MM_ALIGN_LOG2, [ ])
+  AC_DEFINE_UNQUOTED(ZEND_MM_NEED_EIGHT_BYTE_REALIGNMENT, $LIBZEND_MM_NEED_EIGHT_BYTE_REALIGNMENT, [ ])
 ], [], [
   dnl Cross compilation needs something here.
-  AC_DEFINE_UNQUOTED(ZEND_MM_ALIGNMENT, 8, [ ])
-  AC_DEFINE_UNQUOTED(ZEND_MM_ALIGNMENT_LOG2, 3, [ ])
+  AC_DEFINE(ZEND_MM_ALIGNMENT, 8, [ ])
+  AC_DEFINE(ZEND_MM_ALIGNMENT_LOG2, 3, [ ])
+  AC_DEFINE(ZEND_MM_NEED_EIGHT_BYTE_REALIGNMENT, 0, [ ])
 ])
 
 AC_MSG_RESULT(done)
@@ -303,15 +302,29 @@ fi
 AC_MSG_CHECKING(whether to enable zend signal handling)
 AC_MSG_RESULT($ZEND_SIGNALS)
 
-])
+dnl Don't enable Zend Max Execution Timers by default until PHP 8.3 to not break the ABI
+AC_ARG_ENABLE([zend-max-execution-timers],
+  [AS_HELP_STRING([--enable-zend-max-execution-timers],
+    [whether to enable zend max execution timers])],
+    [ZEND_MAX_EXECUTION_TIMERS=$enableval],
+    [ZEND_MAX_EXECUTION_TIMERS='no'])
 
-AC_MSG_CHECKING(whether /dev/urandom exists)
-if test -r "/dev/urandom" && test -c "/dev/urandom"; then
-  AC_DEFINE([HAVE_DEV_URANDOM], 1, [Define if the target system has /dev/urandom device])
-  AC_MSG_RESULT(yes)
-else
-  AC_MSG_RESULT(no)
+AS_CASE(["$host_alias"], [*linux*], [], [ZEND_MAX_EXECUTION_TIMERS='no'])
+
+PHP_CHECK_FUNC(timer_create, rt)
+if test "$ac_cv_func_timer_create" != "yes"; then
+  ZEND_MAX_EXECUTION_TIMERS='no'
 fi
+
+if test "$ZEND_MAX_EXECUTION_TIMERS" = "yes"; then
+  AC_DEFINE(ZEND_MAX_EXECUTION_TIMERS, 1, [Use zend max execution timers])
+  CFLAGS="$CFLAGS -DZEND_MAX_EXECUTION_TIMERS"
+fi
+
+AC_MSG_CHECKING(whether to enable zend max execution timers)
+AC_MSG_RESULT($ZEND_MAX_EXECUTION_TIMERS)
+
+])
 
 AC_ARG_ENABLE([gcc-global-regs],
   [AS_HELP_STRING([--disable-gcc-global-regs],

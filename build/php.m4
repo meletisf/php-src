@@ -279,25 +279,25 @@ dnl
 dnl Checks for -R, etc. switch.
 dnl
 AC_DEFUN([PHP_RUNPATH_SWITCH],[
-AC_MSG_CHECKING([if compiler supports -R])
-AC_CACHE_VAL(php_cv_cc_dashr,[
+AC_MSG_CHECKING([if compiler supports -Wl,-rpath,])
+AC_CACHE_VAL(php_cv_cc_rpath,[
   SAVE_LIBS=$LIBS
-  LIBS="-R /usr/$PHP_LIBDIR $LIBS"
-  AC_LINK_IFELSE([AC_LANG_PROGRAM([], [])],[php_cv_cc_dashr=yes],[php_cv_cc_dashr=no])
+  LIBS="-Wl,-rpath,/usr/$PHP_LIBDIR $LIBS"
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([], [])],[php_cv_cc_rpath=yes],[php_cv_cc_rpath=no])
   LIBS=$SAVE_LIBS])
-AC_MSG_RESULT([$php_cv_cc_dashr])
-if test $php_cv_cc_dashr = "yes"; then
-  ld_runpath_switch=-R
+AC_MSG_RESULT([$php_cv_cc_rpath])
+if test $php_cv_cc_rpath = "yes"; then
+  ld_runpath_switch=-Wl,-rpath,
 else
-  AC_MSG_CHECKING([if compiler supports -Wl,-rpath,])
-  AC_CACHE_VAL(php_cv_cc_rpath,[
+  AC_MSG_CHECKING([if compiler supports -R])
+  AC_CACHE_VAL(php_cv_cc_dashr,[
     SAVE_LIBS=$LIBS
-    LIBS="-Wl,-rpath,/usr/$PHP_LIBDIR $LIBS"
-    AC_LINK_IFELSE([AC_LANG_PROGRAM([], [])],[php_cv_cc_rpath=yes],[php_cv_cc_rpath=no])
+    LIBS="-R /usr/$PHP_LIBDIR $LIBS"
+    AC_LINK_IFELSE([AC_LANG_PROGRAM([], [])],[php_cv_cc_dashr=yes],[php_cv_cc_dashr=no])
     LIBS=$SAVE_LIBS])
-  AC_MSG_RESULT([$php_cv_cc_rpath])
-  if test $php_cv_cc_rpath = "yes"; then
-    ld_runpath_switch=-Wl,-rpath,
+  AC_MSG_RESULT([$php_cv_cc_dashr])
+  if test $php_cv_cc_dashr = "yes"; then
+    ld_runpath_switch=-R
   else
     dnl Something innocuous.
     ld_runpath_switch=-L
@@ -935,7 +935,7 @@ dnl ---------------------------------------------- Static module
     if test "$3" = "shared" || test "$3" = "yes"; then
 dnl ---------------------------------------------- Shared module
       [PHP_]translit($1,a-z_-,A-Z__)[_SHARED]=yes
-      PHP_ADD_SOURCES_X($ext_dir,$2,$ac_extra,shared_objects_$1,yes)
+      PHP_ADD_SOURCES_X($ext_dir,$2,$ac_extra -DZEND_COMPILE_DL_EXT=1,shared_objects_$1,yes)
       PHP_SHARED_MODULE($1,shared_objects_$1, $ext_builddir, $6, $7)
       AC_DEFINE_UNQUOTED([COMPILE_DL_]translit($1,a-z_-,A-Z__), 1, Whether to build $1 as dynamic module)
     fi
@@ -1870,7 +1870,7 @@ AC_DEFUN([PHP_PROG_RE2C],[
     if test "$php_re2c_check" != "invalid"; then
       AC_MSG_RESULT([$php_re2c_version (ok)])
     else
-      AC_MSG_RESULT([$php_re2c_version])
+      AC_MSG_RESULT([$php_re2c_version (too old)])
     fi
   fi
 
@@ -1900,8 +1900,8 @@ AC_DEFUN([PHP_PROG_PHP],[
     set $php_version
     IFS=$ac_IFS
     php_version_num=`expr [$]{1:-0} \* 10000 + [$]{2:-0} \* 100 + [$]{3:-0}`
-    dnl Minimum supported version for gen_stubs.php is PHP 7.1.
-    if test "$php_version_num" -lt 70100; then
+    dnl Minimum supported version for gen_stub.php is PHP 7.4.
+    if test "$php_version_num" -lt 70400; then
       AC_MSG_RESULT([$php_version (too old)])
       unset PHP
     else
@@ -2030,7 +2030,7 @@ ifelse([$3],[],,[else $3])
 ])
 
 dnl
-dnl PHP_SETUP_LIBXML(shared-add [, action-found [, action-not-found]])
+dnl PHP_SETUP_LIBXML(shared-add [, action-found])
 dnl
 dnl Common setup macro for libxml.
 dnl
@@ -2152,7 +2152,7 @@ EOF
    else
     break
    fi
-   $as_echo "$CURRENT_ARG \\" >>$1
+   AS_ECHO(["$CURRENT_ARG \\"]) >>$1
    CONFIGURE_OPTIONS="$CONFIGURE_OPTIONS $CURRENT_ARG"
   done
   echo '"[$]@"' >> $1
@@ -2258,7 +2258,6 @@ struct crypt_data buffer;
 crypt_r("passwd", "hash", &buffer);
 ]])],[php_cv_crypt_r_style=struct_crypt_data_gnu_source],[])
     fi
-    ])
 
     if test "$php_cv_crypt_r_style" = "none"; then
       AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[
@@ -2444,14 +2443,6 @@ AC_DEFUN([PHP_CHECK_STDINT_TYPES], [
   AC_CHECK_SIZEOF([long long])
   AC_CHECK_SIZEOF([size_t])
   AC_CHECK_SIZEOF([off_t])
-  AC_CHECK_TYPES([int8_t, int16_t, int32_t, int64_t, uint8_t, uint16_t, uint32_t, uint64_t], [], [
-    AC_MSG_ERROR([One of the intN_t or uintN_t types is not available])
-  ], [
-#include <stdint.h>
-#if HAVE_SYS_TYPES_H
-# include <sys/types.h>
-#endif
-  ])
 ])
 
 dnl
@@ -2653,6 +2644,27 @@ AC_DEFUN([PHP_CHECK_BUILTIN_SADDLL_OVERFLOW], [
 ])
 
 dnl
+dnl PHP_CHECK_BUILTIN_USUB_OVERFLOW
+dnl
+AC_DEFUN([PHP_CHECK_BUILTIN_USUB_OVERFLOW], [
+  AC_MSG_CHECKING([for __builtin_usub_overflow])
+
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([], [[
+    unsigned int tmpvar;
+    return __builtin_usub_overflow(3, 7, &tmpvar);
+  ]])], [
+    have_builtin_usub_overflow=1
+    AC_MSG_RESULT([yes])
+  ], [
+    have_builtin_usub_overflow=0
+    AC_MSG_RESULT([no])
+  ])
+
+  AC_DEFINE_UNQUOTED([PHP_HAVE_BUILTIN_USUB_OVERFLOW],
+   [$have_builtin_usub_overflow], [Whether the compiler supports __builtin_usub_overflow])
+])
+
+dnl
 dnl PHP_CHECK_BUILTIN_SSUBL_OVERFLOW
 dnl
 AC_DEFUN([PHP_CHECK_BUILTIN_SSUBL_OVERFLOW], [
@@ -2735,6 +2747,26 @@ AC_DEFUN([PHP_CHECK_BUILTIN_CPU_SUPPORTS], [
 ])
 
 dnl
+dnl PHP_CHECK_BUILTIN_FRAME_ADDRESS
+dnl
+AC_DEFUN([PHP_CHECK_BUILTIN_FRAME_ADDRESS], [
+  AC_MSG_CHECKING([for __builtin_frame_address])
+
+  AC_LINK_IFELSE([AC_LANG_PROGRAM([], [[
+    return __builtin_frame_address(0) != (void*)0;
+  ]])], [
+    have_builtin_frame_address=1
+    AC_MSG_RESULT([yes])
+  ], [
+    have_builtin_frame_address=0
+    AC_MSG_RESULT([no])
+  ])
+
+  AC_DEFINE_UNQUOTED([PHP_HAVE_BUILTIN_FRAME_ADDRESS],
+   [$have_builtin_frame_address], [Whether the compiler supports __builtin_frame_address])
+])
+
+dnl
 dnl PHP_PATCH_CONFIG_HEADERS([FILE])
 dnl
 dnl PACKAGE_* symbols are automatically defined by Autoconf. When including
@@ -2748,4 +2780,85 @@ AC_DEFUN([PHP_PATCH_CONFIG_HEADERS], [
 
   $SED -e 's/^#undef PACKAGE_[^ ]*/\/\* & \*\//g' < $srcdir/$1 \
     > $srcdir/$1.tmp && mv $srcdir/$1.tmp $srcdir/$1
+])
+
+dnl Check if we have prctl
+AC_DEFUN([PHP_CHECK_PRCTL],
+[
+  AC_MSG_CHECKING([for prctl])
+
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/prctl.h>]], [[prctl(0, 0, 0, 0, 0);]])], [
+    AC_DEFINE([HAVE_PRCTL], 1, [do we have prctl?])
+    AC_MSG_RESULT([yes])
+  ], [
+    AC_MSG_RESULT([no])
+  ])
+])
+
+dnl Check if we have procctl
+AC_DEFUN([PHP_CHECK_PROCCTL],
+[
+  AC_MSG_CHECKING([for procctl])
+
+  AC_COMPILE_IFELSE([AC_LANG_PROGRAM([[#include <sys/procctl.h>]], [[procctl(0, 0, 0, 0);]])], [
+    AC_DEFINE([HAVE_PROCCTL], 1, [do we have procctl?])
+    AC_MSG_RESULT([yes])
+  ], [
+    AC_MSG_RESULT([no])
+  ])
+])
+
+dnl
+dnl PHP_CHECK_AVX512_SUPPORTS
+dnl
+AC_DEFUN([PHP_CHECK_AVX512_SUPPORTS], [
+  AC_MSG_CHECKING([for avx512 supports in compiler])
+  save_CFLAGS="$CFLAGS"
+  CFLAGS="-mavx512f -mavx512cd -mavx512vl -mavx512dq -mavx512bw $CFLAGS"
+
+  AC_LINK_IFELSE([AC_LANG_SOURCE([[
+    #include <immintrin.h>
+      int main() {
+        __m512i mask = _mm512_set1_epi32(0x1);
+        char out[32];
+        _mm512_storeu_si512(out, _mm512_shuffle_epi8(mask, mask));
+        return 0;
+    }]])], [
+    have_avx512_supports=1
+    AC_MSG_RESULT([yes])
+  ], [
+    have_avx512_supports=0
+    AC_MSG_RESULT([no])
+  ])
+
+  CFLAGS="$save_CFLAGS"
+
+  AC_DEFINE_UNQUOTED([PHP_HAVE_AVX512_SUPPORTS],
+   [$have_avx512_supports], [Whether the compiler supports AVX512])
+])
+
+dnl
+dnl PHP_CHECK_AVX512_VBMI_SUPPORTS
+dnl
+AC_DEFUN([PHP_CHECK_AVX512_VBMI_SUPPORTS], [
+  AC_MSG_CHECKING([for avx512 vbmi supports in compiler])
+  save_CFLAGS="$CFLAGS"
+  CFLAGS="-mavx512f -mavx512cd -mavx512vl -mavx512dq -mavx512bw -mavx512vbmi $CFLAGS"
+  AC_LINK_IFELSE([AC_LANG_SOURCE([[
+    #include <immintrin.h>
+      int main() {
+        __m512i mask = _mm512_set1_epi32(0x1);
+        char out[32];
+        _mm512_storeu_si512(out, _mm512_permutexvar_epi8(mask, mask));
+        return 0;
+    }]])], [
+    have_avx512_vbmi_supports=1
+    AC_MSG_RESULT([yes])
+  ], [
+    have_avx512_vbmi_supports=0
+    AC_MSG_RESULT([no])
+  ])
+  CFLAGS="$save_CFLAGS"
+  AC_DEFINE_UNQUOTED([PHP_HAVE_AVX512_VBMI_SUPPORTS],
+   [$have_avx512_vbmi_supports], [Whether the compiler supports AVX512 VBMI])
 ])

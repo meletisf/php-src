@@ -173,7 +173,6 @@ static void _breakiter_no_args_ret_int32(
 		int32_t (BreakIterator::*func)(),
 		INTERNAL_FUNCTION_PARAMETERS)
 {
-	char	*msg;
 	BREAKITER_METHOD_INIT_VARS;
 	object = ZEND_THIS;
 
@@ -202,7 +201,7 @@ static void _breakiter_int32_ret_int32(
 
 	BREAKITER_METHOD_FETCH_OBJECT;
 
-	if (arg < INT32_MIN || arg > INT32_MAX) {
+	if (UNEXPECTED(arg < INT32_MIN || arg > INT32_MAX)) {
 		zend_argument_value_error(1, "must be between %d and %d", INT32_MIN, INT32_MAX);
 		RETURN_THROWS();
 	}
@@ -293,7 +292,7 @@ U_CFUNC PHP_METHOD(IntlBreakIterator, isBoundary)
 		RETURN_THROWS();
 	}
 
-	if (offset < INT32_MIN || offset > INT32_MAX) {
+	if (UNEXPECTED(offset < INT32_MIN || offset > INT32_MAX)) {
 		zend_argument_value_error(1, "must be between %d and %d", INT32_MIN, INT32_MAX);
 		RETURN_THROWS();
 	}

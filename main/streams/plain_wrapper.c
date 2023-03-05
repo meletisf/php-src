@@ -258,9 +258,9 @@ static void detect_is_seekable(php_stdio_stream_data *self) {
 		self->is_pipe = S_ISFIFO(self->sb.st_mode);
 	}
 #elif defined(PHP_WIN32)
-	zend_uintptr_t handle = _get_osfhandle(self->fd);
+	uintptr_t handle = _get_osfhandle(self->fd);
 
-	if (handle != (zend_uintptr_t)INVALID_HANDLE_VALUE) {
+	if (handle != (uintptr_t)INVALID_HANDLE_VALUE) {
 		DWORD file_type = GetFileType((HANDLE)handle);
 
 		self->is_seekable = !(file_type == FILE_TYPE_PIPE || file_type == FILE_TYPE_CHAR);
@@ -274,7 +274,7 @@ static void detect_is_seekable(php_stdio_stream_data *self) {
 #endif
 }
 
-PHPAPI php_stream *_php_stream_fopen_from_fd(int fd, const char *mode, const char *persistent_id STREAMS_DC)
+PHPAPI php_stream *_php_stream_fopen_from_fd(int fd, const char *mode, const char *persistent_id, bool zero_position STREAMS_DC)
 {
 	php_stream *stream = php_stream_fopen_from_fd_int_rel(fd, mode, persistent_id);
 
@@ -285,6 +285,9 @@ PHPAPI php_stream *_php_stream_fopen_from_fd(int fd, const char *mode, const cha
 		if (!self->is_seekable) {
 			stream->flags |= PHP_STREAM_FLAG_NO_SEEK;
 			stream->position = -1;
+		} else if (zero_position) {
+			ZEND_ASSERT(zend_lseek(self->fd, 0, SEEK_CUR) == 0);
+			stream->position = 0;
 		} else {
 			stream->position = zend_lseek(self->fd, 0, SEEK_CUR);
 #ifdef ESPIPE
@@ -730,7 +733,7 @@ static int php_stdiop_set_option(php_stream *stream, int option, int value, void
 				return -1;
 			}
 
-			if ((zend_uintptr_t) ptrparam == PHP_STREAM_LOCK_SUPPORTED) {
+			if ((uintptr_t) ptrparam == PHP_STREAM_LOCK_SUPPORTED) {
 				return 0;
 			}
 
@@ -879,7 +882,11 @@ static int php_stdiop_set_option(php_stream *stream, int option, int value, void
 							size_t rounded_offset = (range->offset / gran) * gran;
 							delta = range->offset - rounded_offset;
 							loffs = (DWORD)rounded_offset;
+#ifdef _WIN64
 							hoffs = (DWORD)(rounded_offset >> 32);
+#else
+							hoffs = 0;
+#endif
 						}
 
 						/* MapViewOfFile()ing zero bytes would map to the end of the file; match *nix behavior instead */
@@ -1137,7 +1144,12 @@ PHPAPI php_stream *_php_stream_fopen(const char *filename, const char *mode, zen
 		if (options & STREAM_OPEN_FOR_INCLUDE) {
 			ret = php_stream_fopen_from_fd_int_rel(fd, mode, persistent_id);
 		} else {
-			ret = php_stream_fopen_from_fd_rel(fd, mode, persistent_id);
+			/* skip the lseek(SEEK_CUR) system call to
+			 * determine the current offset because we
+			 * know newly opened files are at offset zero
+			 * (unless the file has been opened in
+			 * O_APPEND mode) */
+			ret = php_stream_fopen_from_fd_rel(fd, mode, persistent_id, (open_flags & O_APPEND) == 0);
 		}
 
 		if (ret)	{
@@ -1355,86 +1367,93 @@ static int php_plain_files_rename(php_stream_wrapper *wrapper, const char *url_f
 
 static int php_plain_files_mkdir(php_stream_wrapper *wrapper, const char *dir, int mode, int options, php_stream_context *context)
 {
-	int ret, recursive = options & PHP_STREAM_MKDIR_RECURSIVE;
-	char *p;
-
 	if (strncasecmp(dir, "file://", sizeof("file://") - 1) == 0) {
 		dir += sizeof("file://") - 1;
 	}
 
-	if (!recursive) {
-		ret = php_mkdir(dir, mode);
-	} else {
-		/* we look for directory separator from the end of string, thus hopefully reducing our work load */
-		char *e;
-		zend_stat_t sb;
-		size_t dir_len = strlen(dir), offset = 0;
-		char buf[MAXPATHLEN];
+	if (!(options & PHP_STREAM_MKDIR_RECURSIVE)) {
+		return php_mkdir(dir, mode) == 0;
+	}
 
-		if (!expand_filepath_with_mode(dir, buf, NULL, 0, CWD_EXPAND )) {
-			php_error_docref(NULL, E_WARNING, "Invalid path");
+	char buf[MAXPATHLEN];
+	if (!expand_filepath_with_mode(dir, buf, NULL, 0, CWD_EXPAND)) {
+		php_error_docref(NULL, E_WARNING, "Invalid path");
+		return 0;
+	}
+
+	if (php_check_open_basedir(buf)) {
+		return 0;
+	}
+
+	/* we look for directory separator from the end of string, thus hopefully reducing our work load */
+	char *p;
+	zend_stat_t sb;
+	size_t dir_len = strlen(dir), offset = 0;
+	char *e = buf +  strlen(buf);
+
+	if ((p = memchr(buf, DEFAULT_SLASH, dir_len))) {
+		offset = p - buf + 1;
+	}
+
+	if (p && dir_len == 1) {
+		/* buf == "DEFAULT_SLASH" */
+	}
+	else {
+		/* find a top level directory we need to create */
+		while ( (p = strrchr(buf + offset, DEFAULT_SLASH)) || (offset != 1 && (p = strrchr(buf, DEFAULT_SLASH))) ) {
+			int n = 0;
+
+			*p = '\0';
+			while (p > buf && *(p-1) == DEFAULT_SLASH) {
+				++n;
+				--p;
+				*p = '\0';
+			}
+			if (VCWD_STAT(buf, &sb) == 0) {
+				while (1) {
+					*p = DEFAULT_SLASH;
+					if (!n) break;
+					--n;
+					++p;
+				}
+				break;
+			}
+		}
+	}
+
+	if (!p) {
+		p = buf;
+	}
+	while (true) {
+		int ret = VCWD_MKDIR(buf, (mode_t) mode);
+		if (ret < 0 && errno != EEXIST) {
+			if (options & REPORT_ERRORS) {
+				php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
+			}
 			return 0;
 		}
 
-		e = buf +  strlen(buf);
-
-		if ((p = memchr(buf, DEFAULT_SLASH, dir_len))) {
-			offset = p - buf + 1;
-		}
-
-		if (p && dir_len == 1) {
-			/* buf == "DEFAULT_SLASH" */
-		}
-		else {
-			/* find a top level directory we need to create */
-			while ( (p = strrchr(buf + offset, DEFAULT_SLASH)) || (offset != 1 && (p = strrchr(buf, DEFAULT_SLASH))) ) {
-				int n = 0;
-
-				*p = '\0';
-				while (p > buf && *(p-1) == DEFAULT_SLASH) {
-					++n;
-					--p;
-					*p = '\0';
-				}
-				if (VCWD_STAT(buf, &sb) == 0) {
-					while (1) {
-						*p = DEFAULT_SLASH;
-						if (!n) break;
-						--n;
-						++p;
-					}
+		bool replaced_slash = false;
+		while (++p != e) {
+			if (*p == '\0') {
+				replaced_slash = true;
+				*p = DEFAULT_SLASH;
+				if (*(p+1) != '\0') {
 					break;
 				}
 			}
 		}
-
-		if (p == buf) {
-			ret = php_mkdir(dir, mode);
-		} else if (!(ret = php_mkdir(buf, mode))) {
-			if (!p) {
-				p = buf;
-			}
-			/* create any needed directories if the creation of the 1st directory worked */
-			while (++p != e) {
-				if (*p == '\0') {
-					*p = DEFAULT_SLASH;
-					if ((*(p+1) != '\0') &&
-						(ret = VCWD_MKDIR(buf, (mode_t)mode)) < 0) {
-						if (options & REPORT_ERRORS) {
-							php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
-						}
-						break;
-					}
+		if (p == e || !replaced_slash) {
+			/* No more directories to create */
+			/* issue a warning to client when the last directory was created failed */
+			if (ret < 0) {
+				if (options & REPORT_ERRORS) {
+					php_error_docref(NULL, E_WARNING, "%s", strerror(errno));
 				}
+				return 0;
 			}
+			return 1;
 		}
-	}
-	if (ret < 0) {
-		/* Failure */
-		return 0;
-	} else {
-		/* Success */
-		return 1;
 	}
 }
 

@@ -2,12 +2,14 @@
 
 /** @generate-class-entries */
 
+require "zend_constants.stub.php";
+
 interface Throwable extends Stringable
 {
     public function getMessage(): string;
 
     /** @return int */
-    public function getCode();
+    public function getCode(); // TODO add proper type (i.e. int|string)
 
     public function getFile(): string;
 
@@ -22,11 +24,17 @@ interface Throwable extends Stringable
 
 class Exception implements Throwable
 {
-    /** @var string Intentionally left untyped for BC reasons */
+    /**
+     * Intentionally left untyped for BC reasons
+     * @var string
+     */
     protected $message = "";
     private string $string = "";
-    /** @var int Intentionally left untyped for BC reasons */
-    protected $code = 0;
+    /**
+     * Intentionally left untyped for BC reasons
+     * @var int
+     */
+    protected $code = 0;  // TODO add proper type (i.e. int|string)
     protected string $file = "";
     protected int $line = 0;
     private array $trace = [];
@@ -36,13 +44,13 @@ class Exception implements Throwable
 
     public function __construct(string $message = "", int $code = 0, ?Throwable $previous = null) {}
 
-    /** @return void */
-    public function __wakeup() {}
+    /** @tentative-return-type */
+    public function __wakeup(): void {}
 
     final public function getMessage(): string {}
 
     /** @return int */
-    final public function getCode() {}
+    final public function getCode() {} // TODO add proper type (i.e. int|string)
 
     final public function getFile(): string {}
 
@@ -75,11 +83,17 @@ class ErrorException extends Exception
 
 class Error implements Throwable
 {
-    /** @var string Intentionally left untyped for BC reasons */
+    /**
+     * Intentionally left untyped for BC reasons
+     * @var string
+     */
     protected $message = "";
     private string $string = "";
-    /** @var int Intentionally left untyped for BC reasons */
-    protected $code = 0;
+    /**
+     * Intentionally left untyped for BC reasons
+     * @var int
+     */
+    protected $code = 0; // TODO add proper type (i.e. int|string)
     protected string $file = "";
     protected int $line;
     private array $trace = [];
@@ -92,10 +106,10 @@ class Error implements Throwable
     public function __construct(string $message = "", int $code = 0, ?Throwable $previous = null) {}
 
     /**
-     * @return void
+     * @tentative-return-type
      * @implementation-alias Exception::__wakeup
      */
-    public function __wakeup() {}
+    public function __wakeup(): void {}
 
     /** @implementation-alias Exception::getMessage */
     final public function getMessage(): string {}

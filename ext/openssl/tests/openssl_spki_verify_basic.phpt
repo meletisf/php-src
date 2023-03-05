@@ -18,12 +18,9 @@ foreach ($key_sizes as $key_size) {
 
 /* array of available hashings to test */
 $algo = array(
-    OPENSSL_ALGO_SHA1,
-    OPENSSL_ALGO_SHA224,
     OPENSSL_ALGO_SHA256,
     OPENSSL_ALGO_SHA384,
     OPENSSL_ALGO_SHA512,
-    OPENSSL_ALGO_RMD160
 );
 
 /* loop over key sizes for test */
@@ -48,24 +45,6 @@ function _uuid() {
 
 ?>
 --EXPECT--
-bool(true)
-bool(false)
-bool(true)
-bool(false)
-bool(true)
-bool(false)
-bool(true)
-bool(false)
-bool(true)
-bool(false)
-bool(true)
-bool(false)
-bool(true)
-bool(false)
-bool(true)
-bool(false)
-bool(true)
-bool(false)
 bool(true)
 bool(false)
 bool(true)

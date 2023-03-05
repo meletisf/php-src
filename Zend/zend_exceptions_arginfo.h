@@ -1,5 +1,5 @@
 /* This is a generated file, edit the .stub.php file instead.
- * Stub hash: 9a9ce2975a7449a621d364beca646525fc56b294 */
+ * Stub hash: 4cf2c620393f468968a219b5bd12a2b5f6b03ecc */
 
 ZEND_BEGIN_ARG_WITH_RETURN_TYPE_INFO_EX(arginfo_class_Throwable_getMessage, 0, 0, IS_STRING, 0)
 ZEND_END_ARG_INFO()
@@ -29,7 +29,8 @@ ZEND_BEGIN_ARG_INFO_EX(arginfo_class_Exception___construct, 0, 0, 0)
 	ZEND_ARG_OBJ_INFO_WITH_DEFAULT_VALUE(0, previous, Throwable, 1, "null")
 ZEND_END_ARG_INFO()
 
-#define arginfo_class_Exception___wakeup arginfo_class_Throwable_getCode
+ZEND_BEGIN_ARG_WITH_TENTATIVE_RETURN_TYPE_INFO_EX(arginfo_class_Exception___wakeup, 0, 0, IS_VOID, 0)
+ZEND_END_ARG_INFO()
 
 #define arginfo_class_Exception_getMessage arginfo_class_Throwable_getMessage
 
@@ -62,7 +63,7 @@ ZEND_END_ARG_INFO()
 
 #define arginfo_class_Error___construct arginfo_class_Exception___construct
 
-#define arginfo_class_Error___wakeup arginfo_class_Throwable_getCode
+#define arginfo_class_Error___wakeup arginfo_class_Exception___wakeup
 
 #define arginfo_class_Error_getMessage arginfo_class_Throwable_getMessage
 
@@ -257,6 +258,12 @@ static zend_class_entry *register_class_ErrorException(zend_class_entry *class_e
 
 	INIT_CLASS_ENTRY(ce, "ErrorException", class_ErrorException_methods);
 	class_entry = zend_register_internal_class_ex(&ce, class_entry_Exception);
+
+	zval property_severity_default_value;
+	ZVAL_LONG(&property_severity_default_value, E_ERROR);
+	zend_string *property_severity_name = zend_string_init("severity", sizeof("severity") - 1, 1);
+	zend_declare_typed_property(class_entry, property_severity_name, &property_severity_default_value, ZEND_ACC_PROTECTED, NULL, (zend_type) ZEND_TYPE_INIT_MASK(MAY_BE_LONG));
+	zend_string_release(property_severity_name);
 
 	return class_entry;
 }

@@ -1,6 +1,5 @@
 --TEST--
 Bug #80747: Providing RSA key size < 512 generates key that crash PHP
---FILE--
 --EXTENSIONS--
 openssl
 --SKIPIF--
@@ -15,11 +14,9 @@ $conf = array(
     'private_key_bits' => 511,
 );
 var_dump(openssl_pkey_new($conf));
-while ($e = openssl_error_string()) {
-    echo $e, "\n";
-}
+var_dump(openssl_error_string() !== false);
 
 ?>
---EXPECTF--
+--EXPECT--
 bool(false)
-error:%s:key size too small
+bool(true)

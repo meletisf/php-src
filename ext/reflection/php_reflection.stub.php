@@ -16,6 +16,7 @@ interface Reflector extends Stringable
 {
 }
 
+/** @not-serializable */
 abstract class ReflectionFunctionAbstract implements Reflector
 {
     public string $name;
@@ -53,7 +54,10 @@ abstract class ReflectionFunctionAbstract implements Reflector
     /** @tentative-return-type */
     public function getClosureScopeClass(): ?ReflectionClass {}
 
-    public function getClosureUsedVariables() : array {}
+    /** @tentative-return-type */
+    public function getClosureCalledClass(): ?ReflectionClass {}
+
+    public function getClosureUsedVariables(): array {}
 
     /** @tentative-return-type */
     public function getDocComment(): string|false {}
@@ -112,9 +116,17 @@ abstract class ReflectionFunctionAbstract implements Reflector
 
 class ReflectionFunction extends ReflectionFunctionAbstract
 {
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_DEPRECATED
+     */
+    public const IS_DEPRECATED = UNKNOWN;
+
     public function __construct(Closure|string $function) {}
 
     public function __toString(): string {}
+
+    public function isAnonymous(): bool {}
 
     /**
      * @tentative-return-type
@@ -132,6 +144,7 @@ class ReflectionFunction extends ReflectionFunctionAbstract
     public function getClosure(): Closure {}
 }
 
+/** @not-serializable */
 final class ReflectionGenerator
 {
     public function __construct(Generator $generator) {}
@@ -157,6 +170,37 @@ final class ReflectionGenerator
 
 class ReflectionMethod extends ReflectionFunctionAbstract
 {
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_STATIC
+     */
+    public const IS_STATIC = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_PUBLIC
+     */
+    public const IS_PUBLIC = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_PROTECTED
+     */
+    public const IS_PROTECTED = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_PRIVATE
+     */
+    public const IS_PRIVATE = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_ABSTRACT
+     */
+    public const IS_ABSTRACT = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_FINAL
+     */
+    public const IS_FINAL = UNKNOWN;
+
     public string $class;
 
     public function __construct(object|string $objectOrMethod, ?string $method = null) {}
@@ -202,12 +246,37 @@ class ReflectionMethod extends ReflectionFunctionAbstract
     /** @tentative-return-type */
     public function getPrototype(): ReflectionMethod {}
 
+    public function hasPrototype(): bool {}
+
     /** @tentative-return-type */
     public function setAccessible(bool $accessible): void {}
 }
 
+/** @not-serializable */
 class ReflectionClass implements Reflector
 {
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_IMPLICIT_ABSTRACT_CLASS
+     * @todo deprecate
+     */
+    public const IS_IMPLICIT_ABSTRACT = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_EXPLICIT_ABSTRACT_CLASS
+     */
+    public const IS_EXPLICIT_ABSTRACT = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_FINAL
+     */
+    public const IS_FINAL = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_READONLY_CLASS
+     */
+    public const IS_READONLY = UNKNOWN;
+
     public string $name;
 
     private function __clone(): void {}
@@ -311,6 +380,8 @@ class ReflectionClass implements Reflector
     /** @tentative-return-type */
     public function isFinal(): bool {}
 
+    public function isReadOnly(): bool {}
+
     /** @tentative-return-type */
     public function getModifiers(): int {}
 
@@ -333,7 +404,7 @@ class ReflectionClass implements Reflector
     public function isSubclassOf(ReflectionClass|string $class): bool {}
 
     /** @tentative-return-type */
-    public function getStaticProperties(): ?array {}
+    public function getStaticProperties(): array {}
 
     /** @tentative-return-type */
     public function getStaticPropertyValue(string $name, mixed $default = UNKNOWN): mixed {}
@@ -371,7 +442,6 @@ class ReflectionClass implements Reflector
     /** @tentative-return-type */
     public function getShortName(): string {}
 
-    /** @tentative-return-type */
     public function getAttributes(?string $name = null, int $flags = 0): array {}
 }
 
@@ -380,8 +450,35 @@ class ReflectionObject extends ReflectionClass
     public function __construct(object $object) {}
 }
 
+/** @not-serializable */
 class ReflectionProperty implements Reflector
 {
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_STATIC
+     */
+    public const IS_STATIC = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_READONLY
+     */
+    public const IS_READONLY = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_PUBLIC
+     */
+    public const IS_PUBLIC = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_PROTECTED
+     */
+    public const IS_PROTECTED = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_PRIVATE
+     */
+    public const IS_PRIVATE = UNKNOWN;
+
     public string $name;
     public string $class;
 
@@ -416,6 +513,8 @@ class ReflectionProperty implements Reflector
     /** @tentative-return-type */
     public function isStatic(): bool {}
 
+    public function isReadOnly(): bool {}
+
     /** @tentative-return-type */
     public function isDefault(): bool {}
 
@@ -444,12 +543,33 @@ class ReflectionProperty implements Reflector
     /** @tentative-return-type */
     public function getDefaultValue(): mixed {}
 
-    /** @tentative-return-type */
     public function getAttributes(?string $name = null, int $flags = 0): array {}
 }
 
+/** @not-serializable */
 class ReflectionClassConstant implements Reflector
 {
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_PUBLIC
+     */
+    public const IS_PUBLIC = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_PROTECTED
+     */
+    public const IS_PROTECTED = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_PRIVATE
+     */
+    public const IS_PRIVATE = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue ZEND_ACC_FINAL
+     */
+    public const IS_FINAL = UNKNOWN;
+
     public string $name;
     public string $class;
 
@@ -486,12 +606,12 @@ class ReflectionClassConstant implements Reflector
     /** @tentative-return-type */
     public function getDocComment(): string|false {}
 
-    /** @tentative-return-type */
     public function getAttributes(?string $name = null, int $flags = 0): array {}
 
     public function isEnumCase(): bool {}
 }
 
+/** @not-serializable */
 class ReflectionParameter implements Reflector
 {
     public string $name;
@@ -569,10 +689,10 @@ class ReflectionParameter implements Reflector
 
     public function isPromoted(): bool {}
 
-    /** @tentative-return-type */
     public function getAttributes(?string $name = null, int $flags = 0): array {}
 }
 
+/** @not-serializable */
 abstract class ReflectionType implements Stringable
 {
     /** @implementation-alias ReflectionClass::__clone */
@@ -603,6 +723,7 @@ class ReflectionIntersectionType extends ReflectionType
     public function getTypes(): array {}
 }
 
+/** @not-serializable */
 class ReflectionExtension implements Reflector
 {
     public string $name;
@@ -648,6 +769,7 @@ class ReflectionExtension implements Reflector
     public function isTemporary(): bool {}
 }
 
+/** @not-serializable */
 class ReflectionZendExtension implements Reflector
 {
     public string $name;
@@ -675,6 +797,7 @@ class ReflectionZendExtension implements Reflector
     public function getCopyright(): string {}
 }
 
+/** @not-serializable */
 final class ReflectionReference
 {
     public static function fromArrayElement(array $array, int|string $key): ?ReflectionReference {}
@@ -687,8 +810,15 @@ final class ReflectionReference
     private function __construct() {}
 }
 
-final class ReflectionAttribute implements Reflector
+/** @not-serializable */
+class ReflectionAttribute implements Reflector
 {
+    /**
+     * @var int
+     * @cvalue REFLECTION_ATTRIBUTE_IS_INSTANCEOF
+     */
+    public const IS_INSTANCEOF = UNKNOWN;
+
     public function getName(): string {}
     public function getTarget(): int {}
     public function isRepeated(): bool {}
@@ -702,7 +832,7 @@ final class ReflectionAttribute implements Reflector
     private function __construct() {}
 }
 
-final class ReflectionEnum extends ReflectionClass
+class ReflectionEnum extends ReflectionClass
 {
     public function __construct(object|string $objectOrClass) {}
 
@@ -714,7 +844,7 @@ final class ReflectionEnum extends ReflectionClass
 
     public function isBacked(): bool {}
 
-    public function getBackingType(): ReflectionType|null {}
+    public function getBackingType(): ?ReflectionNamedType {}
 }
 
 class ReflectionEnumUnitCase extends ReflectionClassConstant
@@ -730,22 +860,23 @@ class ReflectionEnumUnitCase extends ReflectionClassConstant
     public function getValue(): UnitEnum {}
 }
 
-final class ReflectionEnumBackedCase extends ReflectionEnumUnitCase
+class ReflectionEnumBackedCase extends ReflectionEnumUnitCase
 {
     public function __construct(object|string $class, string $constant) {}
 
     public function getBackingValue(): int|string {}
 }
 
+/** @not-serializable */
 final class ReflectionFiber
 {
     public function __construct(Fiber $fiber) {}
 
     public function getFiber(): Fiber {}
 
-    public function getExecutingFile(): string {}
+    public function getExecutingFile(): ?string {}
 
-    public function getExecutingLine(): int {}
+    public function getExecutingLine(): ?int {}
 
     public function getCallable(): callable {}
 

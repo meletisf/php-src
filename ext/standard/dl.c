@@ -24,7 +24,7 @@
 
 #include "SAPI.h"
 
-#if defined(HAVE_LIBDL)
+#ifdef HAVE_LIBDL
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
@@ -58,14 +58,26 @@ PHPAPI PHP_FUNCTION(dl)
 		RETURN_FALSE;
 	}
 
+#if ZEND_RC_DEBUG
+	bool orig_rc_debug = zend_rc_debug;
+	/* FIXME: Loading extensions during the request breaks some invariants. In
+	 * particular, it will create persistent interned strings, which is not
+	 * allowed at this stage. */
+	zend_rc_debug = false;
+#endif
+
 	php_dl(filename, MODULE_TEMPORARY, return_value, 0);
 	if (Z_TYPE_P(return_value) == IS_TRUE) {
 		EG(full_tables_cleanup) = 1;
 	}
+
+#if ZEND_RC_DEBUG
+	zend_rc_debug = orig_rc_debug;
+#endif
 }
 /* }}} */
 
-#if defined(HAVE_LIBDL)
+#ifdef HAVE_LIBDL
 
 /* {{{ php_load_shlib */
 PHPAPI void *php_load_shlib(const char *path, char **errp)
@@ -193,6 +205,11 @@ PHPAPI int php_load_extension(const char *filename, int type, int start_now)
 		return FAILURE;
 	}
 	module_entry = get_module();
+	if (zend_hash_str_exists(&module_registry, module_entry->name, strlen(module_entry->name))) {
+		zend_error(E_CORE_WARNING, "Module \"%s\" is already loaded", module_entry->name);
+		DL_UNLOAD(handle);
+		return FAILURE;
+	}
 	if (module_entry->zend_api != ZEND_MODULE_API_NO) {
 			php_error_docref(NULL, error_type,
 					"%s: Unable to initialize module\n"

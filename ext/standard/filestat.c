@@ -25,21 +25,26 @@
 #include <ctype.h>
 #include <time.h>
 
-#if HAVE_UNISTD_H
+#ifdef HAVE_UNISTD_H
 # include <unistd.h>
 #endif
 
-#if HAVE_SYS_PARAM_H
+#ifdef HAVE_SYS_PARAM_H
 # include <sys/param.h>
 #endif
 
-#if HAVE_SYS_VFS_H
+#ifdef HAVE_SYS_VFS_H
 # include <sys/vfs.h>
 #endif
 
-#ifdef OS2
-#  define INCL_DOS
-#  include <os2.h>
+#if defined(__APPLE__)
+  /*
+   Apple statvfs has an interger overflow in libc copying to statvfs.
+   cvt_statfs_to_statvfs(struct statfs *from, struct statvfs *to) {
+   to->f_blocks = (fsblkcnt_t)from->f_blocks;
+   */
+#  undef HAVE_SYS_STATVFS_H
+#  undef HAVE_STATVFS
 #endif
 
 #if defined(HAVE_SYS_STATVFS_H) && defined(HAVE_STATVFS)
@@ -50,7 +55,7 @@
 # include <sys/mount.h>
 #endif
 
-#if HAVE_PWD_H
+#ifdef HAVE_PWD_H
 # ifdef PHP_WIN32
 #  include "win32/pwd.h"
 # else
@@ -62,7 +67,7 @@
 # include <grp.h>
 #endif
 
-#if HAVE_UTIME
+#ifdef HAVE_UTIME
 # ifdef PHP_WIN32
 #  include <sys/utime.h>
 # else
@@ -99,7 +104,7 @@ PHP_RSHUTDOWN_FUNCTION(filestat) /* {{{ */
 }
 /* }}} */
 
-static int php_disk_total_space(char *path, double *space) /* {{{ */
+static zend_result php_disk_total_space(char *path, double *space) /* {{{ */
 #if defined(WINDOWS) /* {{{ */
 {
 	ULARGE_INTEGER FreeBytesAvailableToCaller;
@@ -123,21 +128,7 @@ static int php_disk_total_space(char *path, double *space) /* {{{ */
 	return SUCCESS;
 }
 /* }}} */
-#elif defined(OS2) /* {{{ */
-{
-	double bytestotal = 0;
-	FSALLOCATE fsinfo;
-	char drive = path[0] & 95;
-
-	if (DosQueryFSInfo( drive ? drive - 64 : 0, FSIL_ALLOC, &fsinfo, sizeof( fsinfo ) ) == 0) {
-		bytestotal = (double)fsinfo.cbSector * fsinfo.cSectorUnit * fsinfo.cUnit;
-		*space = bytestotal;
-		return SUCCESS;
-	}
-	return FAILURE;
-}
-/* }}} */
-#else /* {{{ if !defined(OS2) && !defined(WINDOWS) */
+#else /* {{{ if !defined(WINDOWS) */
 {
 	double bytestotal = 0;
 #if defined(HAVE_SYS_STATVFS_H) && defined(HAVE_STATVFS)
@@ -176,25 +167,29 @@ static int php_disk_total_space(char *path, double *space) /* {{{ */
 PHP_FUNCTION(disk_total_space)
 {
 	double bytestotal;
-	char *path;
+	char *path, fullpath[MAXPATHLEN];
 	size_t path_len;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
 		Z_PARAM_PATH(path, path_len)
 	ZEND_PARSE_PARAMETERS_END();
 
-	if (php_check_open_basedir(path)) {
+	if (!expand_filepath(path, fullpath)) {
 		RETURN_FALSE;
 	}
 
-	if (php_disk_total_space(path, &bytestotal) == SUCCESS) {
+	if (php_check_open_basedir(fullpath)) {
+		RETURN_FALSE;
+	}
+
+	if (php_disk_total_space(fullpath, &bytestotal) == SUCCESS) {
 		RETURN_DOUBLE(bytestotal);
 	}
 	RETURN_FALSE;
 }
 /* }}} */
 
-static int php_disk_free_space(char *path, double *space) /* {{{ */
+static zend_result php_disk_free_space(char *path, double *space) /* {{{ */
 #if defined(WINDOWS) /* {{{ */
 {
 	ULARGE_INTEGER FreeBytesAvailableToCaller;
@@ -216,22 +211,7 @@ static int php_disk_free_space(char *path, double *space) /* {{{ */
 
 	return SUCCESS;
 }
-/* }}} */
-#elif defined(OS2) /* {{{ */
-{
-	double bytesfree = 0;
-	FSALLOCATE fsinfo;
-	char drive = path[0] & 95;
-
-	if (DosQueryFSInfo( drive ? drive - 64 : 0, FSIL_ALLOC, &fsinfo, sizeof( fsinfo ) ) == 0) {
-		bytesfree = (double)fsinfo.cbSector * fsinfo.cSectorUnit * fsinfo.cUnitAvail;
-		*space = bytesfree;
-		return SUCCESS;
-	}
-	return FAILURE;
-}
-/* }}} */
-#else /* {{{ if !defined(OS2) && !defined(WINDOWS) */
+#else /* {{{ if !defined(WINDOWS) */
 {
 	double bytesfree = 0;
 #if defined(HAVE_SYS_STATVFS_H) && defined(HAVE_STATVFS)
@@ -269,18 +249,22 @@ static int php_disk_free_space(char *path, double *space) /* {{{ */
 PHP_FUNCTION(disk_free_space)
 {
 	double bytesfree;
-	char *path;
+	char *path, fullpath[MAXPATHLEN];
 	size_t path_len;
 
 	ZEND_PARSE_PARAMETERS_START(1, 1)
 		Z_PARAM_PATH(path, path_len)
 	ZEND_PARSE_PARAMETERS_END();
 
-	if (php_check_open_basedir(path)) {
+	if (!expand_filepath(path, fullpath)) {
 		RETURN_FALSE;
 	}
 
-	if (php_disk_free_space(path, &bytesfree) == SUCCESS) {
+	if (php_check_open_basedir(fullpath)) {
+		RETURN_FALSE;
+	}
+
+	if (php_disk_free_space(fullpath, &bytesfree) == SUCCESS) {
 		RETURN_DOUBLE(bytesfree);
 	}
 	RETURN_FALSE;
@@ -288,7 +272,7 @@ PHP_FUNCTION(disk_free_space)
 /* }}} */
 
 #ifndef PHP_WIN32
-PHPAPI int php_get_gid_by_name(const char *name, gid_t *gid)
+PHPAPI zend_result php_get_gid_by_name(const char *name, gid_t *gid)
 {
 #if defined(ZTS) && defined(HAVE_GETGRNAM_R) && defined(_SC_GETGR_R_SIZE_MAX)
 		struct group gr;
@@ -355,15 +339,15 @@ static void php_do_chgrp(INTERNAL_FUNCTION_PARAMETERS, int do_lchgrp) /* {{{ */
 				RETURN_FALSE;
 			}
 		} else {
-#if !defined(WINDOWS)
+#ifndef WINDOWS
 /* On Windows, we expect regular chgrp to fail silently by default */
-			php_error_docref(NULL, E_WARNING, "Can not call chgrp() for a non-standard stream");
+			php_error_docref(NULL, E_WARNING, "Cannot call chgrp() for a non-standard stream");
 #endif
 			RETURN_FALSE;
 		}
 	}
 
-#if defined(WINDOWS)
+#ifdef WINDOWS
 	/* We have no native chgrp on Windows, nothing left to do if stream doesn't have own implementation */
 	RETURN_FALSE;
 #else
@@ -382,7 +366,7 @@ static void php_do_chgrp(INTERNAL_FUNCTION_PARAMETERS, int do_lchgrp) /* {{{ */
 	}
 
 	if (do_lchgrp) {
-#if HAVE_LCHOWN
+#ifdef HAVE_LCHOWN
 		ret = VCWD_LCHOWN(filename, -1, gid);
 #endif
 	} else {
@@ -405,7 +389,7 @@ PHP_FUNCTION(chgrp)
 /* }}} */
 
 /* {{{ Change symlink group */
-#if HAVE_LCHOWN
+#ifdef HAVE_LCHOWN
 PHP_FUNCTION(lchgrp)
 {
 	php_do_chgrp(INTERNAL_FUNCTION_PARAM_PASSTHRU, 1);
@@ -414,7 +398,7 @@ PHP_FUNCTION(lchgrp)
 /* }}} */
 
 #ifndef PHP_WIN32
-PHPAPI uid_t php_get_uid_by_name(const char *name, uid_t *uid)
+PHPAPI zend_result php_get_uid_by_name(const char *name, uid_t *uid)
 {
 #if defined(ZTS) && defined(_SC_GETPW_R_SIZE_MAX) && defined(HAVE_GETPWNAM_R)
 		struct passwd pw;
@@ -481,15 +465,15 @@ static void php_do_chown(INTERNAL_FUNCTION_PARAMETERS, int do_lchown) /* {{{ */
 				RETURN_FALSE;
 			}
 		} else {
-#if !defined(WINDOWS)
+#ifndef WINDOWS
 /* On Windows, we expect regular chown to fail silently by default */
-			php_error_docref(NULL, E_WARNING, "Can not call chown() for a non-standard stream");
+			php_error_docref(NULL, E_WARNING, "Cannot call chown() for a non-standard stream");
 #endif
 			RETURN_FALSE;
 		}
 	}
 
-#if defined(WINDOWS)
+#ifdef WINDOWS
 	/* We have no native chown on Windows, nothing left to do if stream doesn't have own implementation */
 	RETURN_FALSE;
 #else
@@ -509,7 +493,7 @@ static void php_do_chown(INTERNAL_FUNCTION_PARAMETERS, int do_lchown) /* {{{ */
 	}
 
 	if (do_lchown) {
-#if HAVE_LCHOWN
+#ifdef HAVE_LCHOWN
 		ret = VCWD_LCHOWN(filename, uid, -1);
 #endif
 	} else {
@@ -533,7 +517,7 @@ PHP_FUNCTION(chown)
 /* }}} */
 
 /* {{{ Change file owner */
-#if HAVE_LCHOWN
+#ifdef HAVE_LCHOWN
 PHP_FUNCTION(lchown)
 {
 	RETVAL_TRUE;
@@ -566,7 +550,7 @@ PHP_FUNCTION(chmod)
 				RETURN_FALSE;
 			}
 		} else {
-			php_error_docref(NULL, E_WARNING, "Can not call chmod() for a non-standard stream");
+			php_error_docref(NULL, E_WARNING, "Cannot call chmod() for a non-standard stream");
 			RETURN_FALSE;
 		}
 	}
@@ -587,7 +571,7 @@ PHP_FUNCTION(chmod)
 }
 /* }}} */
 
-#if HAVE_UTIME
+#ifdef HAVE_UTIME
 /* {{{ Set modification time of file */
 PHP_FUNCTION(touch)
 {
@@ -635,7 +619,7 @@ PHP_FUNCTION(touch)
 		} else {
 			php_stream *stream;
 			if(!filetime_is_null || !fileatime_is_null) {
-				php_error_docref(NULL, E_WARNING, "Can not call touch() for a non-standard stream");
+				php_error_docref(NULL, E_WARNING, "Cannot call touch() for a non-standard stream");
 				RETURN_FALSE;
 			}
 			stream = php_stream_open_wrapper_ex(filename, "c", REPORT_ERRORS, NULL, NULL);
@@ -722,8 +706,8 @@ PHP_FUNCTION(clearstatcache)
 /* {{{ php_stat */
 PHPAPI void php_stat(zend_string *filename, int type, zval *return_value)
 {
-	zend_stat_t *stat_sb;
-	php_stream_statbuf ssb;
+	zend_stat_t *stat_sb = {0};
+	php_stream_statbuf ssb = {0};
 	int flags = 0, rmask=S_IROTH, wmask=S_IWOTH, xmask=S_IXOTH; /* access rights defaults to other */
 	const char *local = NULL;
 	php_stream_wrapper *wrapper = NULL;

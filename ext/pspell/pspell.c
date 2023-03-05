@@ -19,7 +19,6 @@
 #endif
 
 #include "php.h"
-#include "zend_interfaces.h"
 
 #include <stdlib.h>
 #include <ctype.h>
@@ -33,13 +32,14 @@
 #include "php_pspell.h"
 #include <pspell.h>
 #include "ext/standard/info.h"
-#include "pspell_arginfo.h"
 
 #define PSPELL_FAST 1L
 #define PSPELL_NORMAL 2L
 #define PSPELL_BAD_SPELLERS 3L
 #define PSPELL_SPEED_MASK_INTERNAL 3L
 #define PSPELL_RUN_TOGETHER 8L
+
+#include "pspell_arginfo.h"
 
 /* Largest ignored word can be 999 characters (this seems sane enough),
  * and it takes 3 bytes to represent that (see pspell_config_ignore)
@@ -152,8 +152,6 @@ static PHP_MINIT_FUNCTION(pspell)
 {
 	php_pspell_ce = register_class_PSpell_Dictionary();
 	php_pspell_ce->create_object = php_pspell_object_create;
-	php_pspell_ce->serialize = zend_class_serialize_deny;
-	php_pspell_ce->unserialize = zend_class_unserialize_deny;
 
 	memcpy(&php_pspell_handlers, &std_object_handlers, sizeof(zend_object_handlers));
 	php_pspell_handlers.clone_obj = NULL;
@@ -163,8 +161,6 @@ static PHP_MINIT_FUNCTION(pspell)
 
 	php_pspell_config_ce = register_class_PSpell_Config();
 	php_pspell_config_ce->create_object = php_pspell_config_object_create;
-	php_pspell_config_ce->serialize = zend_class_serialize_deny;
-	php_pspell_config_ce->unserialize = zend_class_unserialize_deny;
 
 	memcpy(&php_pspell_config_handlers, &std_object_handlers, sizeof(zend_object_handlers));
 	php_pspell_config_handlers.clone_obj = NULL;
@@ -172,10 +168,7 @@ static PHP_MINIT_FUNCTION(pspell)
 	php_pspell_config_handlers.get_constructor = php_pspell_config_object_get_constructor;
 	php_pspell_config_handlers.offset = XtOffsetOf(php_pspell_config_object, std);
 
-	REGISTER_LONG_CONSTANT("PSPELL_FAST", PSPELL_FAST, CONST_PERSISTENT | CONST_CS);
-	REGISTER_LONG_CONSTANT("PSPELL_NORMAL", PSPELL_NORMAL, CONST_PERSISTENT | CONST_CS);
-	REGISTER_LONG_CONSTANT("PSPELL_BAD_SPELLERS", PSPELL_BAD_SPELLERS, CONST_PERSISTENT | CONST_CS);
-	REGISTER_LONG_CONSTANT("PSPELL_RUN_TOGETHER", PSPELL_RUN_TOGETHER, CONST_PERSISTENT | CONST_CS);
+	register_pspell_symbols(module_number);
 
 	return SUCCESS;
 }

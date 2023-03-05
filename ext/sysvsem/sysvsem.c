@@ -31,7 +31,6 @@
 #include "sysvsem_arginfo.h"
 #include "php_sysvsem.h"
 #include "ext/standard/info.h"
-#include "Zend/zend_interfaces.h"
 
 #if !HAVE_SEMUN
 
@@ -101,7 +100,6 @@ static zend_object *sysvsem_create_object(zend_class_entry *class_type) {
 
 	zend_object_std_init(&intern->std, class_type);
 	object_properties_init(&intern->std, class_type);
-	intern->std.handlers = &sysvsem_object_handlers;
 
 	return &intern->std;
 }
@@ -153,8 +151,7 @@ PHP_MINIT_FUNCTION(sysvsem)
 {
 	sysvsem_ce = register_class_SysvSemaphore();
 	sysvsem_ce->create_object = sysvsem_create_object;
-	sysvsem_ce->serialize = zend_class_serialize_deny;
-	sysvsem_ce->unserialize = zend_class_unserialize_deny;
+	sysvsem_ce->default_object_handlers = &sysvsem_object_handlers;
 
 	memcpy(&sysvsem_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
 	sysvsem_object_handlers.offset = XtOffsetOf(sysvsem_sem, std);

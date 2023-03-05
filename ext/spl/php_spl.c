@@ -36,7 +36,6 @@
 #include "spl_heap.h"
 #include "zend_exceptions.h"
 #include "zend_interfaces.h"
-#include "ext/standard/php_mt_rand.h"
 #include "main/snprintf.h"
 
 #ifdef COMPILE_DL_SPL
@@ -75,12 +74,13 @@ PHP_FUNCTION(class_parents)
 	zend_class_entry *parent_class, *ce;
 	bool autoload = 1;
 
+	/* We do not use Z_PARAM_OBJ_OR_STR here to be able to exclude int, float, and bool which are bogus class names */
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|b", &obj, &autoload) == FAILURE) {
 		RETURN_THROWS();
 	}
 
 	if (Z_TYPE_P(obj) != IS_OBJECT && Z_TYPE_P(obj) != IS_STRING) {
-		zend_argument_type_error(1, "must be of type object|string, %s given", zend_zval_type_name(obj));
+		zend_argument_type_error(1, "must be of type object|string, %s given", zend_zval_value_name(obj));
 		RETURN_THROWS();
 	}
 
@@ -108,11 +108,12 @@ PHP_FUNCTION(class_implements)
 	bool autoload = 1;
 	zend_class_entry *ce;
 
+	/* We do not use Z_PARAM_OBJ_OR_STR here to be able to exclude int, float, and bool which are bogus class names */
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|b", &obj, &autoload) == FAILURE) {
 		RETURN_THROWS();
 	}
 	if (Z_TYPE_P(obj) != IS_OBJECT && Z_TYPE_P(obj) != IS_STRING) {
-		zend_argument_type_error(1, "must be of type object|string, %s given", zend_zval_type_name(obj));
+		zend_argument_type_error(1, "must be of type object|string, %s given", zend_zval_value_name(obj));
 		RETURN_THROWS();
 	}
 
@@ -136,11 +137,12 @@ PHP_FUNCTION(class_uses)
 	bool autoload = 1;
 	zend_class_entry *ce;
 
+	/* We do not use Z_PARAM_OBJ_OR_STR here to be able to exclude int, float, and bool which are bogus class names */
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "z|b", &obj, &autoload) == FAILURE) {
 		RETURN_THROWS();
 	}
 	if (Z_TYPE_P(obj) != IS_OBJECT && Z_TYPE_P(obj) != IS_STRING) {
-		zend_argument_type_error(1, "must be of type object|string, %s given", zend_zval_type_name(obj));
+		zend_argument_type_error(1, "must be of type object|string, %s given", zend_zval_value_name(obj));
 		RETURN_THROWS();
 	}
 
@@ -269,8 +271,11 @@ static int spl_autoload(zend_string *class_name, zend_string *lc_name, const cha
 		}
 		zend_string_release_ex(opened_path, 0);
 		if (new_op_array) {
+			uint32_t orig_jit_trace_num = EG(jit_trace_num);
+
 			ZVAL_UNDEF(&result);
 			zend_execute(new_op_array, &result);
+			EG(jit_trace_num) = orig_jit_trace_num;
 
 			destroy_op_array(new_op_array);
 			efree(new_op_array);
@@ -399,6 +404,16 @@ static autoload_func_info *autoload_func_info_from_fci(
 
 static bool autoload_func_info_equals(
 		const autoload_func_info *alfi1, const autoload_func_info *alfi2) {
+	if (UNEXPECTED(
+		(alfi1->func_ptr->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE) &&
+		(alfi2->func_ptr->common.fn_flags & ZEND_ACC_CALL_VIA_TRAMPOLINE)
+	)) {
+		return alfi1->obj == alfi2->obj
+			&& alfi1->ce == alfi2->ce
+			&& alfi1->closure == alfi2->closure
+			&& zend_string_equals(alfi1->func_ptr->common.function_name, alfi2->func_ptr->common.function_name)
+		;
+	}
 	return alfi1->func_ptr == alfi2->func_ptr
 		&& alfi1->obj == alfi2->obj
 		&& alfi1->ce == alfi2->ce
@@ -410,7 +425,7 @@ static zend_class_entry *spl_perform_autoload(zend_string *class_name, zend_stri
 		return NULL;
 	}
 
-	/* We don't use ZEND_HASH_FOREACH here,
+	/* We don't use ZEND_HASH_MAP_FOREACH here,
 	 * because autoloaders may be added/removed during autoloading. */
 	HashPosition pos;
 	zend_hash_internal_pointer_reset_ex(spl_autoload_functions, &pos);
@@ -464,6 +479,7 @@ PHP_FUNCTION(spl_autoload_call)
 } /* }}} */
 
 #define HT_MOVE_TAIL_TO_HEAD(ht)						        \
+	ZEND_ASSERT(!HT_IS_PACKED(ht));						        \
 	do {												        \
 		Bucket tmp = (ht)->arData[(ht)->nNumUsed-1];				\
 		memmove((ht)->arData + 1, (ht)->arData,					\
@@ -478,7 +494,7 @@ static Bucket *spl_find_registered_function(autoload_func_info *find_alfi) {
 	}
 
 	autoload_func_info *alfi;
-	ZEND_HASH_FOREACH_PTR(spl_autoload_functions, alfi) {
+	ZEND_HASH_MAP_FOREACH_PTR(spl_autoload_functions, alfi) {
 		if (autoload_func_info_equals(alfi, find_alfi)) {
 			return _p;
 		}
@@ -520,7 +536,7 @@ PHP_FUNCTION(spl_autoload_register)
 			/* Call trampoline has been cleared by zpp. Refetch it, because we want to deal
 			 * with it outselves. It is important that it is not refetched on every call,
 			 * because calls may occur from different scopes. */
-			zend_is_callable_ex(&fci.function_name, NULL, 0, NULL, &fcc, NULL);
+			zend_is_callable_ex(&fci.function_name, NULL, IS_CALLABLE_SUPPRESS_DEPRECATIONS, NULL, &fcc, NULL);
 		}
 
 		if (fcc.function_handler->type == ZEND_INTERNAL_FUNCTION &&
@@ -577,6 +593,13 @@ PHP_FUNCTION(spl_autoload_unregister)
 		RETURN_TRUE;
 	}
 
+	if (!fcc.function_handler) {
+		/* Call trampoline has been cleared by zpp. Refetch it, because we want to deal
+		 * with it outselves. It is important that it is not refetched on every call,
+		 * because calls may occur from different scopes. */
+		zend_is_callable_ex(&fci.function_name, NULL, 0, NULL, &fcc, NULL);
+	}
+
 	autoload_func_info *alfi = autoload_func_info_from_fci(&fci, &fcc);
 	Bucket *p = spl_find_registered_function(alfi);
 	autoload_func_info_destroy(alfi);
@@ -599,7 +622,7 @@ PHP_FUNCTION(spl_autoload_functions)
 
 	array_init(return_value);
 	if (spl_autoload_functions) {
-		ZEND_HASH_FOREACH_PTR(spl_autoload_functions, alfi) {
+		ZEND_HASH_MAP_FOREACH_PTR(spl_autoload_functions, alfi) {
 			if (alfi->closure) {
 				GC_ADDREF(alfi->closure);
 				add_next_index_object(return_value, alfi->closure);
@@ -670,12 +693,12 @@ PHP_MINFO_FUNCTION(spl)
 	char *strg;
 
 	php_info_print_table_start();
-	php_info_print_table_header(2, "SPL support",        "enabled");
+	php_info_print_table_row(2, "SPL support", "enabled");
 
 	array_init(&list);
 	SPL_LIST_CLASSES(&list, 0, 1, ZEND_ACC_INTERFACE)
 	strg = estrdup("");
-	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(&list), zv) {
+	ZEND_HASH_MAP_FOREACH_VAL(Z_ARRVAL_P(&list), zv) {
 		spl_build_class_list_string(zv, &strg);
 	} ZEND_HASH_FOREACH_END();
 	zend_array_destroy(Z_ARR(list));
@@ -685,7 +708,7 @@ PHP_MINFO_FUNCTION(spl)
 	array_init(&list);
 	SPL_LIST_CLASSES(&list, 0, -1, ZEND_ACC_INTERFACE)
 	strg = estrdup("");
-	ZEND_HASH_FOREACH_VAL(Z_ARRVAL_P(&list), zv) {
+	ZEND_HASH_MAP_FOREACH_VAL(Z_ARRVAL_P(&list), zv) {
 		spl_build_class_list_string(zv, &strg);
 	} ZEND_HASH_FOREACH_END();
 	zend_array_destroy(Z_ARR(list));

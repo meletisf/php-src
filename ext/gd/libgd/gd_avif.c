@@ -142,13 +142,18 @@ static avifBool isAvifSrgbImage(avifImage *avifIm) {
 */
 static avifBool isAvifError(avifResult result, const char *msg) {
 	if (result != AVIF_RESULT_OK) {
-		gd_error("avif error - %s: %s", msg, avifResultToString(result));
+		gd_error("avif error - %s: %s\n", msg, avifResultToString(result));
 		return AVIF_TRUE;
 	}
 
 	return AVIF_FALSE;
 }
 
+
+typedef struct avifIOCtxReader {
+	avifIO io; // this must be the first member for easy casting to avifIO*
+	avifROData rodata;
+} avifIOCtxReader;
 
 /*
 	<readfromCtx> implements the avifIOReadFunc interface by calling the relevant functions
@@ -165,40 +170,51 @@ static avifBool isAvifError(avifResult result, const char *msg) {
 */
 static avifResult readFromCtx(avifIO *io, uint32_t readFlags, uint64_t offset, size_t size, avifROData *out)
 {
-	void *dataBuf = NULL;
 	gdIOCtx *ctx = (gdIOCtx *) io->data;
+	avifIOCtxReader *reader = (avifIOCtxReader *) io;
+
+	// readFlags is unsupported
+	if (readFlags != 0) {
+		return AVIF_RESULT_IO_ERROR;
+	}
 
 	// TODO: if we set sizeHint, this will be more efficient.
 
-	if (offset > LONG_MAX || size < 0)
+	if (offset > INT_MAX || size > INT_MAX)
 		return AVIF_RESULT_IO_ERROR;
 
 	// Try to seek offset bytes forward. If we pass the end of the buffer, throw an error.
-	if (!ctx->seek(ctx, offset))
+	if (!ctx->seek(ctx, (int) offset))
 		return AVIF_RESULT_IO_ERROR;
 
-	dataBuf = avifAlloc(size);
-	if (!dataBuf) {
+	if (size > reader->rodata.size) {
+		reader->rodata.data = gdRealloc((void *) reader->rodata.data, size);
+		reader->rodata.size = size;
+	}
+	if (!reader->rodata.data) {
 		gd_error("avif error - couldn't allocate memory");
 		return AVIF_RESULT_UNKNOWN_ERROR;
 	}
 
 	// Read the number of bytes requested.
 	// If getBuf() returns a negative value, that means there was an error.
-	int charsRead = ctx->getBuf(ctx, dataBuf, size);
+	int charsRead = ctx->getBuf(ctx, (void *) reader->rodata.data, (int) size);
 	if (charsRead < 0) {
-		avifFree(dataBuf);
 		return AVIF_RESULT_IO_ERROR;
 	}
 
-	out->data = dataBuf;
+	out->data = reader->rodata.data;
 	out->size = charsRead;
 	return AVIF_RESULT_OK;
 }
 
 // avif.h says this is optional, but it seemed easy to implement.
 static void destroyAvifIO(struct avifIO *io) {
-	gdFree(io);
+	avifIOCtxReader *reader = (avifIOCtxReader *) io;
+	if (reader->rodata.data != NULL) {
+		gdFree((void *) reader->rodata.data);
+	}
+	gdFree(reader);
 }
 
 /* Set up an avifIO object.
@@ -212,21 +228,23 @@ static void destroyAvifIO(struct avifIO *io) {
 
 // TODO: can we get sizeHint somehow?
 static avifIO *createAvifIOFromCtx(gdIOCtx *ctx) {
-	avifIO *io;
+	struct avifIOCtxReader *reader;
 
-	io = gdMalloc(sizeof(*io));
-	if (io == NULL)
+	reader = gdMalloc(sizeof(*reader));
+	if (reader == NULL)
 		return NULL;
 
 	// TODO: setting persistent=FALSE is safe, but it's less efficient. Is it necessary?
-	io->persistent = AVIF_FALSE;
-	io->read = readFromCtx;
-	io->write = NULL; // this function is currently unused; see avif.h
-	io->destroy = destroyAvifIO;
-	io->sizeHint = 0; // sadly, we don't get this information from the gdIOCtx.
-	io->data = ctx;
+	reader->io.persistent = AVIF_FALSE;
+	reader->io.read = readFromCtx;
+	reader->io.write = NULL; // this function is currently unused; see avif.h
+	reader->io.destroy = destroyAvifIO;
+	reader->io.sizeHint = 0; // sadly, we don't get this information from the gdIOCtx.
+	reader->io.data = ctx;
+	reader->rodata.data = NULL;
+	reader->rodata.size = 0;
 
-	return io;
+	return (avifIO *) reader;
 }
 
 
@@ -330,7 +348,7 @@ gdImagePtr gdImageCreateFromAvifPtr(int size, void *data)
 */
 gdImagePtr gdImageCreateFromAvifCtx (gdIOCtx *ctx)
 {
-	int x, y;
+	uint32_t x, y;
 	gdImage *im = NULL;
 	avifResult result;
 	avifIO *io;
@@ -341,6 +359,15 @@ gdImagePtr gdImageCreateFromAvifCtx (gdIOCtx *ctx)
 	rgb.pixels = NULL;
 
 	decoder = avifDecoderCreate();
+
+	// Check if libavif version is >= 0.9.1
+	// If so, allow the PixelInformationProperty ('pixi') to be missing in AV1 image
+	// items. libheif v1.11.0 or older does not add the 'pixi' item property to
+	// AV1 image items. (This issue has been corrected in libheif v1.12.0.)
+
+#if AVIF_VERSION >= 90100
+	decoder->strictFlags &= ~AVIF_STRICT_PIXI_REQUIRED;
+#endif
 
 	io = createAvifIOFromCtx(ctx);
 	if (!io) {
@@ -465,7 +492,7 @@ void gdImageAvifCtx(gdImagePtr im, gdIOCtx *outfile, int quality, int speed)
 
 	uint32_t val;
 	uint8_t *p;
-	int x, y;
+	uint32_t x, y;
 
 	if (im == NULL)
 		return;
@@ -562,6 +589,9 @@ cleanup:
 
 	if (avifOutput.data)
 		avifRWDataFree(&avifOutput);
+
+	if (avifIm)
+		avifImageDestroy(avifIm);
 }
 
 void gdImageAvifEx(gdImagePtr im, FILE *outFile, int quality, int speed)

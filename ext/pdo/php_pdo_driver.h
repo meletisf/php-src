@@ -35,15 +35,16 @@ struct pdo_bound_param_data;
 
 #define PDO_DRIVER_API	20170320
 
+/* Doctrine hardcodes these constants, avoid changing their values. */
 enum pdo_param_type {
-	PDO_PARAM_NULL,
-	PDO_PARAM_BOOL,
-	PDO_PARAM_INT,
-	PDO_PARAM_STR,
-	PDO_PARAM_LOB,
+	PDO_PARAM_NULL = 0,
+	PDO_PARAM_BOOL = 5,
+	PDO_PARAM_INT = 1,
+	PDO_PARAM_STR = 2,
+	PDO_PARAM_LOB = 3,
 
 	/* get_col: Not supported (yet?) */
-	PDO_PARAM_STMT, /* hierarchical result set */
+	PDO_PARAM_STMT = 4, /* hierarchical result set */
 
 	/* magic flag to denote a parameter as being input/output */
 	PDO_PARAM_INPUT_OUTPUT = 0x80000000,
@@ -671,7 +672,7 @@ PDO_API zend_class_entry *php_pdo_get_exception(void);
 PDO_API int pdo_parse_params(pdo_stmt_t *stmt, zend_string *inquery, zend_string **outquery);
 
 PDO_API void pdo_raise_impl_error(pdo_dbh_t *dbh, pdo_stmt_t *stmt,
-	const char *sqlstate, const char *supp);
+	pdo_error_type sqlstate, const char *supp);
 
 PDO_API void php_pdo_dbh_addref(pdo_dbh_t *dbh);
 PDO_API void php_pdo_dbh_delref(pdo_dbh_t *dbh);

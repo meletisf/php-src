@@ -2,9 +2,21 @@
 
 /** @generate-class-entries */
 
+/** @not-serializable */
 class Transliterator
 {
-    public string $id;
+    /**
+     * @var int
+     * @cvalue TRANSLITERATOR_FORWARD
+     */
+    public const FORWARD = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue TRANSLITERATOR_REVERSE
+     */
+    public const REVERSE = UNKNOWN;
+
+    public readonly string $id;
 
     final private function __construct() {}
 
@@ -27,6 +39,7 @@ class Transliterator
     public function createInverse(): ?Transliterator {}
 
     /**
+     * @return array<int, string>|false
      * @tentative-return-type
      * @alias transliterator_list_ids
      */

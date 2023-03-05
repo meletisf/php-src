@@ -26,8 +26,9 @@
 #include "ext/standard/php_var.h"
 #include "ext/spl/spl_exceptions.h"
 
-#include "zend_interfaces.h"
+#include "zend_attributes.h"
 #include "zend_exceptions.h"
+#include "zend_interfaces.h"
 #include "zend_smart_str.h"
 
 #include "hash_arginfo.h"
@@ -234,6 +235,9 @@ PHP_HASH_API int php_hash_serialize_spec(const php_hashcontext_object *hash, zva
 	size_t pos = 0, max_alignment = 1;
 	unsigned char *buf = (unsigned char *) hash->context;
 	zval tmp;
+	if (buf == NULL) {
+		return FAILURE;
+	}
 	array_init(zv);
 	while (*spec != '\0' && *spec != '.') {
 		char spec_ch = *spec;
@@ -860,7 +864,7 @@ PHP_FUNCTION(hash_algos)
 	}
 
 	array_init(return_value);
-	ZEND_HASH_FOREACH_STR_KEY(&php_hash_hashtable, str) {
+	ZEND_HASH_MAP_FOREACH_STR_KEY(&php_hash_hashtable, str) {
 		add_next_index_str(return_value, zend_string_copy(str));
 	} ZEND_HASH_FOREACH_END();
 }
@@ -877,7 +881,7 @@ PHP_FUNCTION(hash_hmac_algos)
 	}
 
 	array_init(return_value);
-	ZEND_HASH_FOREACH_STR_KEY_PTR(&php_hash_hashtable, str, ops) {
+	ZEND_HASH_MAP_FOREACH_STR_KEY_PTR(&php_hash_hashtable, str, ops) {
 		if (ops->is_crypto) {
 			add_next_index_str(return_value, zend_string_copy(str));
 		}
@@ -1107,9 +1111,7 @@ PHP_FUNCTION(hash_pbkdf2)
 PHP_FUNCTION(hash_equals)
 {
 	zval *known_zval, *user_zval;
-	char *known_str, *user_str;
 	int result = 0;
-	size_t j;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "zz", &known_zval, &user_zval) == FAILURE) {
 		RETURN_THROWS();
@@ -1117,26 +1119,17 @@ PHP_FUNCTION(hash_equals)
 
 	/* We only allow comparing string to prevent unexpected results. */
 	if (Z_TYPE_P(known_zval) != IS_STRING) {
-		zend_argument_type_error(1, "must be of type string, %s given", zend_zval_type_name(known_zval));
+		zend_argument_type_error(1, "must be of type string, %s given", zend_zval_value_name(known_zval));
 		RETURN_THROWS();
 	}
 
 	if (Z_TYPE_P(user_zval) != IS_STRING) {
-		zend_argument_type_error(2, "must be of type string, %s given", zend_zval_type_name(user_zval));
+		zend_argument_type_error(2, "must be of type string, %s given", zend_zval_value_name(user_zval));
 		RETURN_THROWS();
 	}
 
-	if (Z_STRLEN_P(known_zval) != Z_STRLEN_P(user_zval)) {
-		RETURN_FALSE;
-	}
-
-	known_str = Z_STRVAL_P(known_zval);
-	user_str = Z_STRVAL_P(user_zval);
-
 	/* This is security sensitive code. Do not optimize this for speed. */
-	for (j = 0; j < Z_STRLEN_P(known_zval); j++) {
-		result |= known_str[j] ^ user_str[j];
-	}
+	result = php_safe_bcmp(Z_STR_P(known_zval), Z_STR_P(user_zval));
 
 	RETURN_BOOL(0 == result);
 }
@@ -1193,7 +1186,7 @@ static void mhash_init(INIT_FUNC_ARGS)
 		}
 
 		len = slprintf(buf, 127, "MHASH_%s", algorithm.mhash_name);
-		zend_register_long_constant(buf, len, algorithm.value, CONST_CS | CONST_PERSISTENT, module_number);
+		zend_register_long_constant(buf, len, algorithm.value, CONST_PERSISTENT, module_number);
 	}
 
 	/* TODO: this cause #69823 zend_register_internal_module(&mhash_module_entry); */
@@ -1628,7 +1621,7 @@ PHP_MINIT_FUNCTION(hash)
 	PHP_HASH_HAVAL_REGISTER(5,224);
 	PHP_HASH_HAVAL_REGISTER(5,256);
 
-	REGISTER_LONG_CONSTANT("HASH_HMAC",		PHP_HASH_HMAC,	CONST_CS | CONST_PERSISTENT);
+	register_hash_symbols(module_number);
 
 	php_hashcontext_ce = register_class_HashContext();
 	php_hashcontext_ce->create_object = php_hashcontext_create;
@@ -1663,7 +1656,7 @@ PHP_MINFO_FUNCTION(hash)
 	zend_string *str;
 	char *s = buffer, *e = s + sizeof(buffer);
 
-	ZEND_HASH_FOREACH_STR_KEY(&php_hash_hashtable, str) {
+	ZEND_HASH_MAP_FOREACH_STR_KEY(&php_hash_hashtable, str) {
 		s += slprintf(s, e - s, "%s ", ZSTR_VAL(str));
 	} ZEND_HASH_FOREACH_END();
 	*s = 0;

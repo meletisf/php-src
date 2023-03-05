@@ -58,7 +58,8 @@ mysqli_close($link2);
 foreach ($charsets as $charset) {
     /* The server currently 17.07.2007 can't handle data sent in ucs2 */
     /* The server currently 16.08.2010 can't handle data sent in utf16 and utf32 */
-    if ($charset['Charset'] == 'ucs2' || $charset['Charset'] == 'utf16' || $charset['Charset'] == 'utf32') {
+    /* As of MySQL 8.0.28, `SHOW CHARACTER SET` contains utf8mb3, but that is not yet supported by mysqlnd */
+    if ($charset['Charset'] == 'ucs2' || $charset['Charset'] == 'utf16' || $charset['Charset'] == 'utf32' || $charset['Charset'] == 'utf8mb3') {
         continue;
     }
     if (true !== mysqli_options($link, MYSQLI_SET_CHARSET_NAME, $charset['Charset'])) {
@@ -90,9 +91,6 @@ $link = mysqli_init();
 // test for error reporting - only mysqlnd reports errors
 try {
     mysqli_options($link, MYSQLI_SET_CHARSET_NAME, "foobar");
-    if (!$IS_MYSQLND) {
-        print "Unknown character set\n";
-    }
 } catch (mysqli_sql_exception $e) {
     echo $e->getMessage() . "\n";
 }

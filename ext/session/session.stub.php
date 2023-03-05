@@ -2,20 +2,41 @@
 
 /** @generate-class-entries */
 
+/**
+ * @var int
+ * @cvalue php_session_disabled
+ */
+const PHP_SESSION_DISABLED = UNKNOWN;
+/**
+ * @var int
+ * @cvalue php_session_none
+ */
+const PHP_SESSION_NONE = UNKNOWN;
+/**
+ * @var int
+ * @cvalue php_session_active
+ */
+const PHP_SESSION_ACTIVE = UNKNOWN;
+
+/** @refcount 1 */
 function session_name(?string $name = null): string|false {}
 
+/** @refcount 1 */
 function session_module_name(?string $module = null): string|false {}
 
+/** @refcount 1 */
 function session_save_path(?string $path = null): string|false {}
 
 function session_id(?string $id = null): string|false {}
 
+/** @refcount 1 */
 function session_create_id(string $prefix = ""): string|false {}
 
 function session_regenerate_id(bool $delete_old_session = false): bool {}
 
 function session_decode(string $data): bool {}
 
+/** @refcount 1 */
 function session_encode(): string|false {}
 
 function session_destroy(): bool {}
@@ -24,6 +45,10 @@ function session_unset(): bool {}
 
 function session_gc(): int|false {}
 
+/**
+ * @return array<string, mixed>
+ * @refcount 1
+ */
 function session_get_cookie_params(): array {}
 
 function session_write_close(): bool {}
@@ -50,11 +75,12 @@ function session_set_save_handler(
     callable $write = UNKNOWN,
     callable $destroy = UNKNOWN,
     callable $gc = UNKNOWN,
-    callable $create_sid = UNKNOWN,
-    callable $validate_sid = UNKNOWN,
-    callable $update_timestamp = UNKNOWN
+    ?callable $create_sid = null,
+    ?callable $validate_sid = null,
+    ?callable $update_timestamp = null
 ): bool {}
 
+/** @refcount 1 */
 function session_cache_limiter(?string $value = null): string|false {}
 
 function session_cache_expire(?int $value = null): int|false {}

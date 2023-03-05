@@ -141,7 +141,7 @@ PHP_FUNCTION(dns_check_record)
 /* }}} */
 
 /* {{{ php_parserr */
-static void php_parserr(PDNS_RECORD pRec, int type_to_fetch, int store, int raw, zval *subarray)
+static void php_parserr(PDNS_RECORD pRec, int type_to_fetch, int store, bool raw, zval *subarray)
 {
 	int type;
 	u_long ttl;
@@ -221,18 +221,18 @@ static void php_parserr(PDNS_RECORD pRec, int type_to_fetch, int store, int raw,
 				array_init(&entries);
 
 				for (i = 0; i < count; i++) {
-					txt_len += strlen(data_txt->pStringArray[i]) + 1;
+					txt_len += strlen(data_txt->pStringArray[i]);
 				}
 
-				txt = zend_string_safe_alloc(txt_len, 2, 0, 0);
-				txt_dst = txt->val;
+				txt = zend_string_alloc(txt_len, 0);
+				txt_dst = ZSTR_VAL(txt);
 				for (i = 0; i < count; i++) {
 					size_t len = strlen(data_txt->pStringArray[i]);
 					memcpy(txt_dst, data_txt->pStringArray[i], len);
 					add_next_index_stringl(&entries, data_txt->pStringArray[i], len);
 					txt_dst += len;
 				}
-				txt->len = txt_dst - txt->val;
+				*txt_dst = '\0';
 				add_assoc_str(subarray, "txt", txt);
 				add_assoc_zval(subarray, "entries", &entries);
 			}
@@ -271,7 +271,7 @@ static void php_parserr(PDNS_RECORD pRec, int type_to_fetch, int store, int raw,
 
 				for(i=0; i < 8; i++) {
 					if (out[i] != 0) {
-						if (tp > (u_char *)buf) {
+						if (tp > (uint8_t *)buf) {
 							in_v6_break = 0;
 							tp[0] = ':';
 							tp++;
@@ -506,21 +506,3 @@ PHP_FUNCTION(dns_get_record)
 	}
 }
 /* }}} */
-
-PHP_MINIT_FUNCTION(dns) {
-	REGISTER_LONG_CONSTANT("DNS_A",     PHP_DNS_A,     CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("DNS_NS",    PHP_DNS_NS,    CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("DNS_CNAME", PHP_DNS_CNAME, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("DNS_SOA",   PHP_DNS_SOA,   CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("DNS_PTR",   PHP_DNS_PTR,   CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("DNS_HINFO", PHP_DNS_HINFO, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("DNS_MX",    PHP_DNS_MX,    CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("DNS_TXT",   PHP_DNS_TXT,   CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("DNS_SRV",   PHP_DNS_SRV,   CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("DNS_NAPTR", PHP_DNS_NAPTR, CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("DNS_AAAA",  PHP_DNS_AAAA,  CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("DNS_A6",    PHP_DNS_A6,    CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("DNS_ANY",   PHP_DNS_ANY,   CONST_CS | CONST_PERSISTENT);
-	REGISTER_LONG_CONSTANT("DNS_ALL",   PHP_DNS_ALL,   CONST_CS | CONST_PERSISTENT);
-	return SUCCESS;
-}

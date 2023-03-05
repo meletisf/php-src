@@ -1,184 +1,141 @@
 PHP                                                                        NEWS
 |||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||||
-?? ??? ????, PHP 8.1.0beta1
+?? ??? ????, PHP 8.3.0alpha1
+
+- CLI:
+  . Added pdeathsig to builtin server to terminate workers when the master
+    process is killed. (ilutov)
 
 - Core:
- . Fixed bug #81238 (Fiber support missing for Solaris Sparc). (trowski)
-
-- Reflection:
- . Fixed bug #80097 (ReflectionAttribute is not a Reflector). (beberlei)
-
-08 Jul 2021, PHP 8.1.0alpha3
-
-- Core:
-  . Fixed bug #81202 (powerpc64 build fails on fibers). (krakjoe)
-  . Fixed bug #80072 (Cyclic unserialize in TMPVAR operand may leak). (Nikita)
-
-- Curl:
-  . Fixed bug #81085 (Support CURLOPT_SSLCERT_BLOB for cert strings).
-    (camporter)
-
-- Reflection:
-  . Fixed bug #81200 (no way to determine if Closure is static). (krakjoe)
-
-24 Jun 2021, PHP 8.1.0alpha2
-
-- Core:
-  . Fixed bug #81163 (__sleep allowed to return non-array). (krakjoe)
-
-- Opcache:
-  . Fixed bug #81133 (building opcache with phpize fails). (krakjoe)
-  . Fixed bug #81136 (opcache header not installed). (krakjoe)
-
-- PDO OCI:
-  . Fixed bug #77120 (Support 'success with info' at connection).
-    (Sergei Morozov)
-    
-- phpdbg:
-  . Fixed bug #81135 (unknown help topic causes assertion failure). (krakjoe)
-
-- SPL:
-  . Fixed bug #81112 (Special json_encode behavior for SplFixedArray). (Nikita)
-  . Fixed bug #80945 ("Notice: Undefined index" on unset() ArrayObject
-    non-existing key). (Nikita)
-    
-- Standard:
-  . Fixed bug #81137 (hrtime breaks build on OSX before Sierra). (krakjoe)
-
-10 Jun 2021, PHP 8.1.0alpha1
-
-- Core:
-  . Fixed inclusion order for phpize builds on Windows. (cmb)
-  . Added missing hashtable insertion APIs for arr/obj/ref. (Sara)
-  . Fixed bug #75474 (function scope static variables are not bound to a unique
-    function). (Nikita)
-  . Fixed bug #53826 (__callStatic fired in base class through a parent call if
-    the method is private). (Nikita)
-  . Implemented FR #77372 (Relative file path is removed from uploaded file).
-    (Björn Tantau)
-  . Fixed bug #81076 (incorrect debug info on Closures with implicit binds).
-    (krakjoe)
- 
- - Standard:
-  . Fixed bug #77627 (method_exists on Closure::__invoke inconsistency).
-    (krakjoe)
+  . Fixed bug GH-9388 (Improve unset property and __get type incompatibility
+    error message). (ilutov)
+  . SA_ONSTACK is now set for signal handlers to be friendlier to other
+    in-process code such as Go's cgo. (Kévin Dunglas)
+  . SA_ONSTACK is now set when signals are disabled. (Kévin Dunglas)
+  . Fix GH-9649: Signal handlers now do a no-op instead of crashing when
+    executed on threads not managed by TSRM. (Kévin Dunglas)
+  . Fixed potential NULL pointer dereference Windows shm*() functions. (cmb)
+  . Added shadow stack support for fibers. (Chen Hu)
+  . Fix bug GH-9965 (Fix accidental caching of default arguments with side
+    effects). (ilutov)
+  . Implement GH-10217 (Use strlen() for determining the class_name length).
+    (Dennis Buteyn)
+  . Fix bug GH-8821 (Improve line numbers for errors in constant expressions).
+    (ilutov)
+  . Fix bug GH-10083 (Allow comments between & and parameter). (ilutov)
 
 - Date:
-  . Fixed bug #52480 (Incorrect difference using DateInterval) (Derick)
-  . Fixed bug #62326 (date_diff() function returns false result) (Derick)
-  . Fixed bug #64992 (dst not handled past 2038) (Derick)
-  . Fixed bug #65003 (Wrong date diff) (Derick)
-  . Fixed bug #66545 (DateTime. diff returns negative values) (Derick)
-  . Fixed bug #68503 (date_diff on two dates with timezone set localised
-    returns wrong results) (Derick)
-  . Fixed bug #69806 (Incorrect date from timestamp) (Derick)
-  . Fixed bug #71700 (Extra day on diff between begin and end of march 2016)
-    (Derick)
-  . Fixed bug #71826 (DateTime::diff confuse on timezone 'Asia/Tokyo') (Derick)
-  . Fixed bug #73460 (Datetime add not realising it already applied DST
-    change) (Derick)
-  . Fixed bug #74173 (DateTimeImmutable::getTimestamp() triggers DST switch in
-    incorrect time) (Derick)
-  . Fixed bug #74274 (Handling DST transitions correctly) (Derick)
-  . Fixed bug #74524 (Date diff is bad calculated, in same time zone) (Derick)
-  . Fixed bug #75167 (DateTime::add does only care about backward DST
-    transition, not forward) (Derick)
-  . Fixed bug #76032 (DateTime->diff having issues with leap days for
-    timezones ahead of UTC) (Derick)
-  . Fixed bug #76374 (Date difference varies according day time) (Derick)
-  . Fixed bug #77571 (DateTime's diff DateInterval incorrect in timezones from
-    UTC+01:00 to UTC+12:00 (Derick)
-  . Fixed bug #78452 (diff makes wrong in hour for Asia/Tehran) (Derick)
-  . Fixed bug #79452 (DateTime::diff() generates months differently between
-    time zones) (Derick)
-  . Fixed bug #79698 (timelib mishandles future timestamps (triggered by 'zic
-    -b slim')) (Derick)
-  . Fixed bug #79716 (Invalid date time created (with day "00")) (Derick)
-  . Fixed bug #80610 (DateTime calculate wrong with DateInterval) (Derick)
-  . Fixed bug #80664 (DateTime objects behave incorrectly around DST
-    transition) (Derick)
-  . Fixed bug #80913 (DateTime(Immutable)::sub around DST yield incorrect
-    time) (Derick)
+  . Implement More Appropriate Date/Time Exceptions RFC. (Derick)
+
+- Exif:
+  . Removed unneeded codepaths in exif_process_TIFF_in_JPEG(). (nielsdos)
+
+- Fileinfo:
+  . Upgrade bundled libmagic to 5.43. (Anatol)
 
 - FPM:
-  . Added openmetrics status format. (Cees-Jan Kiewiet)
-  . Enable process renaming on macOS. (devnexen)
-  . Added pm.max_spawn_rate option to configure max spawn child processes rate.
-    (Paulius Sapragonas)
-  . Fixed bug #65800 (Events port mechanism). (psumbera)
-
-- FTP:
-  . Convert resource<ftp> to object \FTP\Connection. (Sara)
+  . The status.listen shared pool now uses the same php_values (including
+    expose_php) and php_admin_value as the pool it is shared with. (dwxh)
 
 - GD:
-  . Convert resource<gd font> to object \GdFont. (Sara)
+  . Fixed bug #81739: OOB read due to insufficient input validation in
+    imageloadfont(). (CVE-2022-31630) (cmb)
 
-- hash:
-  . Implemented FR #68109 (Add MurmurHash V3). (Anatol, Michael)
-  . Implemented FR #73385 (Add xxHash support). (Anatol)
+- Hash:
+  . Fixed bug #81738: buffer overflow in hash_update() on long parameter.
+    (CVE-2022-37454) (nicky at mouha dot be)
 
-- LDAP:
-  . Convert resource<ldap link> to object \LDAP\Connection. (Máté)
-  . Convert resource<ldap result> to object \LDAP\Result. (Máté)
-  . Convert resource<ldap result entry> to object \LDAP\ResultEntry. (Máté)
+- Intl:
+  . Added pattern format error infos for numfmt_set_pattern. (David Carlier)
+  . Added MIXED_NUMBERS and HIDDEN_OVERLAY constants for
+    the Spoofchecker's class. (David Carlier)
 
-- MySQLi:
-  . Fixed bug #70372 (Emulate mysqli_fetch_all() for libmysqlclient). (Nikita)
-  . Fixed bug #80330 (Replace language in APIs and source code/docs).
-    (Darek Ślusarczyk)
-  . Fixed bug #80329 (Add option to specify LOAD DATA LOCAL white list folder
-    (including libmysql)). (Darek Ślusarczyk)
+- JSON:
+  . Added json_validate(). (Juan Morales)
 
-- MySQLnd:
-  . Fixed bug #80761 (PDO uses too much memory). (Nikita)
+- MBString:
+  . mb_detect_encoding is better able to identify the correct encoding for
+    Turkish text. (Alex Dowad)
+  . mb_detect_encoding's "non-strict" mode now behaves as described in the
+    documentation. Previously, it would return false if the very first byte
+    of the input string was invalid in all candidate encodings. (Alex Dowad)
+  . mb_strtolower, mb_strtotitle, and mb_convert_case implement conditional
+    casing rules for the Greek letter sigma. For mb_convert_case, conditional
+    casing only applies to MB_CASE_LOWER and MB_CASE_TITLE modes, not to
+    MB_CASE_LOWER_SIMPLE and MB_CASE_TITLE_SIMPLE. (Alex Dowad)
+  . mb_detect_encoding is better able to identify UTF-8 and UTF-16 strings
+    with a byte-order mark. (Alex Dowad)
+  . mb_decode_mimeheader interprets underscores in QPrint-encoded MIME
+    encoded words as required by RFC 2047; they are converted to spaces.
+    Underscores must be encoded as "=5F" in such MIME encoded words.
+    (Alex Dowad)
 
-- OPcache:
-  . Added inheritance cache. (Dmitry)
+- Opcache:
+  . Added start, restart and force restart time to opcache's
+    phpinfo section. (Mikhail Galanin)
+  . Fix GH-9139: Allow FFI in opcache.preload when opcache.preload_user=root.
+    (Arnaud, Kapitan Oczywisty)
+  . Made opcache.preload_user always optional in the cli and phpdbg SAPIs.
+    (Arnaud)
+  . Allows W/X bits on page creation on FreeBSD despite system settings.
+    (David Carlier)
+  . Added memfd api usage, on Linux, for zend_shared_alloc_create_lock()
+    to create an abstract anonymous file for the opcache's lock. (Max Kellermann)
 
-- OpenSSL:
-  . Bump minimal OpenSSL version to 1.0.2. (Jakub Zelenka)
+- PCNTL:
+  . SA_ONSTACK is now set for pcntl_signal. (Kévin Dunglas)
+  . Added SIGINFO constant. (David Carlier)
 
-- PCRE:
-  . Bundled PCRE2 is 10.37.
+- Posix:
+  . Added posix_sysconf. (David Carlier)
+  . Added posix_pathconf. (David Carlier)
+  . Added posix_fpathconf. (David Carlier)
+  . Fixed zend_parse_arg_long's bool pointer argument assignment. (Cristian Rodriguez)
 
-- PDO:
-  . Fixed bug #40913 (PDO_MYSQL: PDO::PARAM_LOB does not bind to a stream for
-    fetching a BLOB). (Nikita)
-
-. PDO MySQL:
-  . Fixed bug #80908 (PDO::lastInsertId() return wrong). (matt)
-  . Fixed bug #81037 (PDO discards error message text from prepared
-    statement). (Kamil Tekiela)
-
-. PDO ODBC:
-  . Implement PDO_ATTR_SERVER_VERSION and PDO_ATTR_SERVER_INFO for
-    PDO::getAttribute(). (Calvin Buckley)
-
-. PDO SQLite:
-  . Fixed bug #38334 (Proper data-type support for PDO_SQLITE). (Nikita)
-
-- PgSQL:
-  . Convert resource<pgsql link> to object \PgSql\Connection. (Máté)
-  . Convert resource<pgsql result> to object \PgSql\Result. (Máté)
-  . Convert resource<pgsql large object> to object \PgSql\Lob. (Máté)
-
-- PSpell:
-  . Convert resource<pspell> to object \PSpell\Dictionary. (Sara)
-  . Convert resource<pspell config> to object \PSpell\Config. (Sara)
-
-- readline:
-  . Fixed bug #72998 (invalid read in readline completion). (krakjoe)
+- Random:
+  . Added Randomizer::getBytesFromString(). (Joshua Rüsweg)
+  . Added Randomizer::nextFloat(), ::getFloat(), and IntervalBoundary. (timwolla)
+  . Fix GH-10292 (Made the default value of the first param of srand() and
+    mt_srand() nullable). (kocsismate)
+  . Enable getrandom() for NetBSD (from 10.x). (David Carlier)
 
 - Reflection:
-  . Implement ReflectionFunctionAbstract::getClosureUsedVariables (krakjoe)
+  . Fix GH-9470 (ReflectionMethod constructor should not find private parent
+    method). (ilutov)
+  . Fix GH-10259 (ReflectionClass::getStaticProperties doesn't need null return
+    type). (kocsismate)
+  . Fix Segfault when using ReflectionFiber suspended by an internal function.
+    (danog)
 
-- Sodium:
-  . Added the XChaCha20 stream cipher functions. (P.I.E. Security Team)
-  . Added the Ristretto255 functions, which are available in libsodium 1.0.18.
-    (P.I.E. Security Team)
+- Sockets:
+  . Added SO_ATTACH_REUSEPORT_CBPF socket option, to give tighter control
+    over socket binding for a cpu core. (David Carlier)
+  . Added SKF_AD_QUEUE for cbpf filters. (David Carlier)
+  . Added socket_atmark if send/recv needs using MSG_OOB. (David Carlier)
+  . Added TCP_QUICKACK constant, to give tigher control over
+    ACK delays. (David Carlier)
+  . Added DONTFRAGMENT support for path MTU discovery purpose. (David Carlier)
+  . Added AF_DIVERT for raw socket for divert ports. (David Carlier)
+  . Added SOL_UPDLITE, UDPLITE_RECV_CSCOV and UDPLITE_SEND_CSCOV for updlite
+    protocol support. (David Carlier)
+  . Added SO_RERROR, SO_ZEROIZE and SO_SPLICE netbsd and openbsd constants.
+    (David Carlier)
+  . Added TCP_REPAIR for quietly close a connection. (David Carlier)
 
-- SPL:
-  . Fixed bug #80724 (FilesystemIterator::FOLLOW_SYMLINKS remove KEY_AS_FILE
-    from bitmask). (Cameron Porter)
+- Standard:
+  . E_NOTICEs emitted by unserialize() have been promoted to E_WARNING. (timwolla)
+  . Make array_pad's $length warning less confusing. (nielsdos)
+  . E_WARNING emitted by strtok in the caase both arguments are not provided when
+    starting tokenisation. (David Carlier)
+  . password_hash() will now chain the original RandomException to the ValueError
+    on salt generation failure. (timwolla)
+  . Fix GH-10239 (proc_close after proc_get_status always returns -1). (nielsdos)
+
+- Streams:
+  . Fixed bug #51056: blocking fread() will block even if data is available.
+    (Jakub Zelenka)
+
+- XSLTProcessor:
+  . Fixed bug #69168 (DomNode::getNodePath() returns invalid path). (nielsdos)
 
 <<< NOTE: Insert NEWS from last stable release here prior to actual release! >>>

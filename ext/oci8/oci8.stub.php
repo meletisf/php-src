@@ -2,6 +2,403 @@
 
 /** @generate-class-entries */
 
+/**
+ * @var int
+ * @cvalue OCI_DEFAULT
+ */
+const OCI_DEFAULT = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_SYSOPER
+ */
+const OCI_SYSOPER = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_SYSDBA
+ */
+const OCI_SYSDBA = UNKNOWN;
+/**
+ * @var int
+ * @cvalue PHP_OCI_CRED_EXT
+ */
+const OCI_CRED_EXT = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_DESCRIBE_ONLY
+ */
+const OCI_DESCRIBE_ONLY = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_COMMIT_ON_SUCCESS
+ */
+const OCI_COMMIT_ON_SUCCESS = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_DEFAULT
+ */
+const OCI_NO_AUTO_COMMIT = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_EXACT_FETCH
+ */
+const OCI_EXACT_FETCH = UNKNOWN;
+
+/* for $LOB->seek() */
+
+/**
+ * @var int
+ * @cvalue PHP_OCI_SEEK_SET
+ */
+const OCI_SEEK_SET = UNKNOWN;
+/**
+ * @var int
+ * @cvalue PHP_OCI_SEEK_CUR
+ */
+const OCI_SEEK_CUR = UNKNOWN;
+/**
+ * @var int
+ * @cvalue PHP_OCI_SEEK_END
+ */
+const OCI_SEEK_END = UNKNOWN;
+
+/*	for $LOB->flush() */
+
+/**
+ * @var int
+ * @cvalue OCI_LOB_BUFFER_FREE
+ */
+const OCI_LOB_BUFFER_FREE = UNKNOWN;
+
+/* for OCIBindByName (real "oci" names + short "php" names */
+
+/**
+ * @var int
+ * @cvalue SQLT_BFILEE
+ */
+const SQLT_BFILEE = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_CFILEE
+ */
+const SQLT_CFILEE = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_CLOB
+ */
+const SQLT_CLOB = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_BLOB
+ */
+const SQLT_BLOB = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_RDD
+ */
+const SQLT_RDD = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_INT
+ */
+const SQLT_INT = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_NUM
+ */
+const SQLT_NUM = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_RSET
+ */
+const SQLT_RSET = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_AFC
+ */
+const SQLT_AFC = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_CHR
+ */
+const SQLT_CHR = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_VCS
+ */
+const SQLT_VCS = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_AVC
+ */
+const SQLT_AVC = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_STR
+ */
+const SQLT_STR = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_LVC
+ */
+const SQLT_LVC = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_FLT
+ */
+const SQLT_FLT = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_UIN
+ */
+const SQLT_UIN = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_LNG
+ */
+const SQLT_LNG = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_LBI
+ */
+const SQLT_LBI = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_BIN
+ */
+const SQLT_BIN = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_ODT
+ */
+const SQLT_ODT = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_BDOUBLE
+ */
+const SQLT_BDOUBLE = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_BFLOAT
+ */
+const SQLT_BFLOAT = UNKNOWN;
+#if OCI_MAJOR_VERSION >= 12
+/**
+ * @var int
+ * @cvalue SQLT_BOL
+ */
+const SQLT_BOL = UNKNOWN;
+#endif
+
+/**
+ * @var int
+ * @cvalue SQLT_NTY
+ */
+const OCI_B_NTY = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_NTY
+ */
+const SQLT_NTY = UNKNOWN;
+
+/** @var string */
+const OCI_SYSDATE = "SYSDATE";
+
+/**
+ * @var int
+ * @cvalue SQLT_BFILEE
+ */
+const OCI_B_BFILE = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_CFILEE
+ */
+const OCI_B_CFILEE = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_CLOB
+ */
+const OCI_B_CLOB = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_BLOB
+ */
+const OCI_B_BLOB = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_RDD
+ */
+const OCI_B_ROWID = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_RSET
+ */
+const OCI_B_CURSOR = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_BIN
+ */
+const OCI_B_BIN = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_INT
+ */
+const OCI_B_INT = UNKNOWN;
+/**
+ * @var int
+ * @cvalue SQLT_NUM
+ */
+const OCI_B_NUM = UNKNOWN;
+#if OCI_MAJOR_VERSION >= 12
+/**
+ * @var int
+ * @cvalue SQLT_BOL
+ */
+const OCI_B_BOL = UNKNOWN;
+#endif
+
+/* for OCIFetchStatement */
+
+/**
+ * @var int
+ * @cvalue PHP_OCI_FETCHSTATEMENT_BY_COLUMN
+ */
+const OCI_FETCHSTATEMENT_BY_COLUMN = UNKNOWN;
+/**
+ * @var int
+ * @cvalue PHP_OCI_FETCHSTATEMENT_BY_ROW
+ */
+const OCI_FETCHSTATEMENT_BY_ROW = UNKNOWN;
+
+/* for OCIFetchInto & OCIResult */
+
+/**
+ * @var int
+ * @cvalue PHP_OCI_ASSOC
+ */
+const OCI_ASSOC = UNKNOWN;
+/**
+ * @var int
+ * @cvalue PHP_OCI_NUM
+ */
+const OCI_NUM = UNKNOWN;
+/**
+ * @var int
+ * @cvalue PHP_OCI_BOTH
+ */
+const OCI_BOTH = UNKNOWN;
+/**
+ * @var int
+ * @cvalue PHP_OCI_RETURN_NULLS
+ */
+const OCI_RETURN_NULLS = UNKNOWN;
+/**
+ * @var int
+ * @cvalue PHP_OCI_RETURN_LOBS
+ */
+const OCI_RETURN_LOBS = UNKNOWN;
+
+/* for OCINewDescriptor (real "oci" names + short "php" names */
+
+/**
+ * @var int
+ * @cvalue OCI_DTYPE_FILE
+ */
+const OCI_DTYPE_FILE = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_DTYPE_LOB
+ */
+const OCI_DTYPE_LOB = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_DTYPE_ROWID
+ */
+const OCI_DTYPE_ROWID = UNKNOWN;
+
+/**
+ * @var int
+ * @cvalue OCI_DTYPE_FILE
+ */
+const OCI_D_FILE = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_DTYPE_LOB
+ */
+const OCI_D_LOB = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_DTYPE_ROWID
+ */
+const OCI_D_ROWID = UNKNOWN;
+
+/* for OCIWriteTemporaryLob */
+
+/**
+ * @var int
+ * @cvalue OCI_TEMP_CLOB
+ */
+const OCI_TEMP_CLOB = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_TEMP_BLOB
+ */
+const OCI_TEMP_BLOB = UNKNOWN;
+
+/* for Transparent Application Failover */
+
+/**
+ * @var int
+ * @cvalue OCI_FO_END
+ */
+const OCI_FO_END = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_FO_ABORT
+ */
+const OCI_FO_ABORT = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_FO_REAUTH
+ */
+const OCI_FO_REAUTH = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_FO_BEGIN
+ */
+const OCI_FO_BEGIN = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_FO_ERROR
+ */
+const OCI_FO_ERROR = UNKNOWN;
+
+/**
+ * @var int
+ * @cvalue OCI_FO_NONE
+ */
+const OCI_FO_NONE = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_FO_SESSION
+ */
+const OCI_FO_SESSION = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_FO_SELECT
+ */
+const OCI_FO_SELECT = UNKNOWN;
+/**
+ * @var int
+ * @cvalue OCI_FO_TXNAL
+ */
+const OCI_FO_TXNAL = UNKNOWN;
+
+/**
+ * @var int
+ * @cvalue OCI_FO_RETRY
+ */
+const OCI_FO_RETRY = UNKNOWN;
+
 /** @param resource $statement */
 function oci_define_by_name($statement, string $column, mixed &$var, int $type = 0): bool {}
 
@@ -239,7 +636,7 @@ function ocifetchinto($statement, &$result, int $mode = OCI_NUM): int|false {}
  * @param resource $statement
  * @param array $output
  */
-function oci_fetch_all($statement, &$output, int $offset = 0, int $limit = -1, int $flags = 0): int {}
+function oci_fetch_all($statement, &$output, int $offset = 0, int $limit = -1, int $flags = OCI_FETCHSTATEMENT_BY_COLUMN | OCI_ASSOC): int {}
 
 /**
  * @param resource $statement
@@ -247,7 +644,7 @@ function oci_fetch_all($statement, &$output, int $offset = 0, int $limit = -1, i
  * @alias oci_fetch_all
  * @deprecated
  */
-function ocifetchstatement($statement, &$output, int $offset = 0, int $limit = -1, int $flags = 0): int {}
+function ocifetchstatement($statement, &$output, int $offset = 0, int $limit = -1, int $flags = OCI_FETCHSTATEMENT_BY_COLUMN | OCI_ASSOC): int {}
 
 /** @param resource $statement */
 function oci_fetch_object($statement, int $mode = OCI_ASSOC | OCI_RETURN_NULLS): stdClass|false {}
@@ -294,43 +691,52 @@ function oci_close($connection): ?bool {}
  */
 function ocilogoff($connection): ?bool {}
 
-/** @return resource|false */
-function oci_new_connect(string $username, string $password, ?string $connection_string = null, string $encoding = "", int $session_mode = OCI_DEFAULT) {}
+/**
+ * @return resource|false
+ */
+function oci_new_connect(string $username, #[\SensitiveParameter] string $password, ?string $connection_string = null, string $encoding = "", int $session_mode = OCI_DEFAULT) {}
 
 /**
  * @return resource|false
  * @alias oci_new_connect
  * @deprecated
  */
-function ocinlogon(string $username, string $password, ?string $connection_string = null, string $encoding = "", int $session_mode = OCI_DEFAULT) {}
+function ocinlogon(string $username, #[\SensitiveParameter] string $password, ?string $connection_string = null, string $encoding = "", int $session_mode = OCI_DEFAULT) {}
 
 /**
  * @return resource|false
  */
-function oci_connect(string $username, string $password, ?string $connection_string = null, string $encoding = "", int $session_mode = OCI_DEFAULT) {}
+function oci_connect(string $username, #[\SensitiveParameter] string $password, ?string $connection_string = null, string $encoding = "", int $session_mode = OCI_DEFAULT) {}
 
 /**
  * @return resource|false
  * @alias oci_connect
  * @deprecated
  */
-function ocilogon(string $username, string $password, ?string $connection_string = null, string $encoding = "", int $session_mode = OCI_DEFAULT) {}
+function ocilogon(string $username, #[\SensitiveParameter] string $password, ?string $connection_string = null, string $encoding = "", int $session_mode = OCI_DEFAULT) {}
 
-/** @return resource|false */
-function oci_pconnect(string $username, string $password, ?string $connection_string = null, string $encoding = "", int $session_mode = OCI_DEFAULT) {}
+/**
+ * @return resource|false
+ */
+function oci_pconnect(string $username, #[\SensitiveParameter] string $password, ?string $connection_string = null, string $encoding = "", int $session_mode = OCI_DEFAULT) {}
 
 /**
  * @return resource|false
  * @alias oci_pconnect
  * @deprecated
  */
-function ociplogon(string $username, string $password, ?string $connection_string = null, string $encoding = "", int $session_mode = OCI_DEFAULT) {}
+function ociplogon(string $username, #[\SensitiveParameter] string $password, ?string $connection_string = null, string $encoding = "", int $session_mode = OCI_DEFAULT) {}
 
-/** @param resource|null $connection_or_statement */
+/**
+ * @param resource|null $connection_or_statement
+ * @return array<string, int|string>|false
+ * @refcount 1
+ */
 function oci_error($connection_or_statement = null): array|false {}
 
 /**
  * @param resource|null $connection_or_statement
+ * @return array<string, int|string>|false
  * @alias oci_error
  * @deprecated
  */
@@ -375,6 +781,9 @@ function oci_set_prefetch($statement, int $rows): bool {}
  * @deprecated
  */
 function ocisetprefetch($statement, int $rows): bool {}
+
+/** @param resource $statement */
+function oci_set_prefetch_lob($statement, int $prefetch_lob_size): bool {}
 
 /** @param resource $connection */
 function oci_set_client_identifier($connection, string $client_id): bool {}
@@ -542,6 +951,7 @@ function oci_register_taf_callback($connection, ?callable $callback): bool {}
 /** @param resource $connection */
 function oci_unregister_taf_callback($connection): bool {}
 
+#[\AllowDynamicProperties]
 class OCILob {
     /**
      * @alias oci_lob_save
@@ -559,7 +969,7 @@ class OCILob {
      * @alias oci_lob_import
      * @tentative-return-type
      */
-    public function savefile(string $filename): bool {}
+    public function saveFile(string $filename): bool {}
 
     /**
      * @alias oci_lob_load
@@ -637,19 +1047,19 @@ class OCILob {
      * @alias ocisetbufferinglob
      * @tentative-return-type
      */
-    public function setbuffering(bool $mode): bool {}
+    public function setBuffering(bool $mode): bool {}
 
     /**
      * @alias ocigetbufferinglob
      * @tentative-return-type
      */
-    public function getbuffering(): bool {}
+    public function getBuffering(): bool {}
 
     /**
      * @alias oci_lob_export
      * @tentative-return-type
      */
-    public function writetofile(string $filename, ?int $offset = null, ?int $length = null): bool {}
+    public function writeToFile(string $filename, ?int $offset = null, ?int $length = null): bool {}
 
     /**
      * @alias oci_lob_export
@@ -658,7 +1068,7 @@ class OCILob {
     public function export(string $filename, ?int $offset = null, ?int $length = null): bool {}
 
     /** @tentative-return-type */
-    public function writetemporary(string $data, int $type = OCI_TEMP_CLOB): bool {}
+    public function writeTemporary(string $data, int $type = OCI_TEMP_CLOB): bool {}
 
     /** @tentative-return-type */
     public function close(): bool {}
@@ -670,6 +1080,7 @@ class OCILob {
     public function free(): bool {}
 }
 
+#[\AllowDynamicProperties]
 class OCICollection {
     /**
      * @alias oci_free_collection
@@ -699,7 +1110,7 @@ class OCICollection {
      * @alias oci_collection_element_assign
      * @tentative-return-type
      */
-    public function assignelem(int $index, string $value): bool {}
+    public function assignElem(int $index, string $value): bool {}
 
     /**
      * @alias oci_collection_size

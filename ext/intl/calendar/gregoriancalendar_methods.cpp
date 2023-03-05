@@ -44,10 +44,10 @@ static inline GregorianCalendar *fetch_greg(Calendar_object *co) {
 }
 
 static void _php_intlgregcal_constructor_body(
-    INTERNAL_FUNCTION_PARAMETERS, bool is_constructor)
+    INTERNAL_FUNCTION_PARAMETERS, bool is_constructor, zend_error_handling *error_handling, bool *error_handling_replaced)
 {
 	zval		*tz_object	= NULL;
-	zval		args_a[6] = {0},
+	zval		args_a[6],
 				*args		= &args_a[0];
 	char		*locale		= NULL;
 	size_t			locale_len;
@@ -82,6 +82,11 @@ static void _php_intlgregcal_constructor_body(
 			"lll|lll", &largs[0], &largs[1], &largs[2], &largs[3], &largs[4],
 			&largs[5]) == FAILURE) {
 		RETURN_THROWS();
+	}
+
+	if (error_handling != NULL) {
+		zend_replace_error_handling(EH_THROW, IntlException_ce_ptr, error_handling);
+		*error_handling_replaced = 1;
 	}
 
 	// instantion of ICU object
@@ -130,7 +135,7 @@ static void _php_intlgregcal_constructor_body(
 	} else {
 		// From date/time (3, 5 or 6 arguments)
 		for (int i = 0; i < variant; i++) {
-			if (largs[i] < INT32_MIN || largs[i] > INT32_MAX) {
+			if (UNEXPECTED(largs[i] < INT32_MIN || largs[i] > INT32_MAX)) {
 				zend_argument_value_error(getThis() ? (i-1) : i,
 					"must be between %d and %d", INT32_MIN, INT32_MAX);
 				RETURN_THROWS();
@@ -188,17 +193,19 @@ U_CFUNC PHP_FUNCTION(intlgregcal_create_instance)
 	intl_error_reset(NULL);
 
 	object_init_ex(return_value, GregorianCalendar_ce_ptr);
-	_php_intlgregcal_constructor_body(INTERNAL_FUNCTION_PARAM_PASSTHRU, 0);
+	_php_intlgregcal_constructor_body(INTERNAL_FUNCTION_PARAM_PASSTHRU, /* is_constructor */ 0, NULL, NULL);
 }
 
 U_CFUNC PHP_METHOD(IntlGregorianCalendar, __construct)
 {
 	zend_error_handling error_handling;
+	bool error_handling_replaced = 0;
 
-	zend_replace_error_handling(EH_THROW, IntlException_ce_ptr, &error_handling);
 	return_value = ZEND_THIS;
-	_php_intlgregcal_constructor_body(INTERNAL_FUNCTION_PARAM_PASSTHRU, 1);
-	zend_restore_error_handling(&error_handling);
+	_php_intlgregcal_constructor_body(INTERNAL_FUNCTION_PARAM_PASSTHRU, /* is_constructor */ 1, &error_handling, &error_handling_replaced);
+	if (error_handling_replaced) {
+		zend_restore_error_handling(&error_handling);
+	}
 }
 
 U_CFUNC PHP_FUNCTION(intlgregcal_set_gregorian_change)
@@ -244,7 +251,7 @@ U_CFUNC PHP_FUNCTION(intlgregcal_is_leap_year)
 		RETURN_THROWS();
 	}
 
-	if (year < INT32_MIN || year > INT32_MAX) {
+	if (UNEXPECTED(year < INT32_MIN || year > INT32_MAX)) {
 		zend_argument_value_error(getThis() ? 1 : 2, "must be between %d and %d", INT32_MIN, INT32_MAX);
 		RETURN_THROWS();
 	}

@@ -134,6 +134,8 @@ static int pgsql_stmt_execute(pdo_stmt_t *stmt)
 	pdo_pgsql_db_handle *H = S->H;
 	ExecStatusType status;
 
+	bool in_trans = stmt->dbh->methods->in_transaction(stmt->dbh);
+
 	/* ensure that we free any previous unfetched results */
 	if(S->result) {
 		PQclear(S->result);
@@ -240,8 +242,8 @@ stmt_retry:
 		return 0;
 	}
 
-	if (!stmt->executed && (!stmt->column_count || S->cols == NULL)) {
-		stmt->column_count = (int) PQnfields(S->result);
+	stmt->column_count = (int) PQnfields(S->result);
+	if (S->cols == NULL) {
 		S->cols = ecalloc(stmt->column_count, sizeof(pdo_pgsql_column));
 	}
 
@@ -250,6 +252,10 @@ stmt_retry:
 		H->pgoid = PQoidValue(S->result);
 	} else {
 		stmt->row_count = (zend_long)PQntuples(S->result);
+	}
+
+	if (in_trans && !stmt->dbh->methods->in_transaction(stmt->dbh)) {
+		pdo_pgsql_close_lob_streams(stmt->dbh);
 	}
 
 	return 1;
@@ -674,12 +680,6 @@ static int pgsql_stmt_get_column_meta(pdo_stmt_t *stmt, zend_long colno, zval *r
 
 static int pdo_pgsql_stmt_cursor_closer(pdo_stmt_t *stmt)
 {
-	pdo_pgsql_stmt *S = (pdo_pgsql_stmt*)stmt->driver_data;
-
-	if (S->cols != NULL){
-		efree(S->cols);
-		S->cols = NULL;
-	}
 	return 1;
 }
 

@@ -8,6 +8,87 @@ class PharException extends Exception
 
 class Phar extends RecursiveDirectoryIterator implements Countable, ArrayAccess
 {
+    /**
+     * @var int
+     * @cvalue PHAR_ENT_COMPRESSED_BZ2
+     */
+    const BZ2 = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue PHAR_ENT_COMPRESSED_GZ
+     */
+    const GZ = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue PHAR_ENT_COMPRESSED_NONE
+     */
+    const NONE = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue PHAR_FORMAT_PHAR
+     */
+    const PHAR = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue PHAR_FORMAT_TAR
+     */
+    const TAR = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue PHAR_FORMAT_ZIP
+     */
+    const ZIP = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue PHAR_ENT_COMPRESSION_MASK
+     */
+    const COMPRESSED = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue PHAR_MIME_PHP
+     */
+    const PHP = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue PHAR_MIME_PHPS
+     */
+    const PHPS = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue PHAR_SIG_MD5
+     */
+    const MD5 = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue PHAR_SIG_OPENSSL
+     */
+    const OPENSSL = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue PHAR_SIG_OPENSSL_SHA256
+     */
+    const OPENSSL_SHA256 = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue PHAR_SIG_OPENSSL_SHA512
+     */
+    const OPENSSL_SHA512 = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue PHAR_SIG_SHA1
+     */
+    const SHA1 = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue PHAR_SIG_SHA256
+     */
+    const SHA256 = UNKNOWN;
+    /**
+     * @var int
+     * @cvalue PHAR_SIG_SHA512
+     */
+    const SHA512 = UNKNOWN;
+
     public function __construct(string $filename, int $flags = FilesystemIterator::SKIP_DOTS|FilesystemIterator::UNIX_PATHS, ?string $alias = null) {}
 
     public function __destruct() {}
@@ -46,7 +127,7 @@ class Phar extends RecursiveDirectoryIterator implements Countable, ArrayAccess
     public function convertToData(?int $format = null, ?int $compression = null, ?string $extension = null): ?PharData {}
 
     /** @return bool */
-    public function copy(string $to, string $from) {} // TODO make return type void
+    public function copy(string $from, string $to) {} // TODO make return type void
 
     /** @tentative-return-type */
     public function count(int $mode = COUNT_NORMAL): int {}
@@ -119,7 +200,7 @@ class Phar extends RecursiveDirectoryIterator implements Countable, ArrayAccess
      * @param string $localName
      * @tentative-return-type
      */
-    public function offsetUnset($localName): bool {}
+    public function offsetUnset($localName): void {}
 
     /** @tentative-return-type */
     public function setAlias(string $alias): bool {}
@@ -261,7 +342,7 @@ class PharData extends RecursiveDirectoryIterator implements Countable, ArrayAcc
      * @return bool
      * @implementation-alias Phar::copy
      */
-    public function copy(string $to, string $from) {} // TODO make return type void
+    public function copy(string $from, string $to) {} // TODO make return type void
 
     /**
      * @tentative-return-type
@@ -386,7 +467,7 @@ class PharData extends RecursiveDirectoryIterator implements Countable, ArrayAcc
      * @tentative-return-type
      * @implementation-alias Phar::offsetUnset
      */
-    public function offsetUnset($localName): bool {}
+    public function offsetUnset($localName): void {}
 
     /**
      * @tentative-return-type

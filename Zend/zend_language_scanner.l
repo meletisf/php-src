@@ -620,7 +620,6 @@ static zend_op_array *zend_compile(int type)
 		zend_emit_final_return(type == ZEND_USER_FUNCTION);
 		op_array->line_start = 1;
 		op_array->line_end = last_lineno;
-		zend_init_static_variables_map_ptr(op_array);
 		pass_two(op_array);
 		zend_oparray_context_end(&original_oparray_context);
 		zend_file_context_end(&original_file_context);
@@ -782,7 +781,7 @@ ZEND_API size_t zend_get_scanned_file_offset(void)
 	return offset;
 }
 
-zend_op_array *compile_string(zend_string *source_string, const char *filename)
+zend_op_array *compile_string(zend_string *source_string, const char *filename, zend_compile_position position)
 {
 	zend_lex_state original_lex_state;
 	zend_op_array *op_array = NULL;
@@ -799,7 +798,19 @@ zend_op_array *compile_string(zend_string *source_string, const char *filename)
 	filename_str = zend_string_init(filename, strlen(filename), 0);
 	zend_prepare_string_for_scanning(&tmp, filename_str);
 	zend_string_release(filename_str);
-	BEGIN(ST_IN_SCRIPTING);
+
+	switch (position) {
+		case ZEND_COMPILE_POSITION_AT_SHEBANG:
+			BEGIN(SHEBANG);
+			break;
+		case ZEND_COMPILE_POSITION_AT_OPEN_TAG:
+			BEGIN(INITIAL);
+			break;
+		case ZEND_COMPILE_POSITION_AFTER_OPEN_TAG:
+			BEGIN(ST_IN_SCRIPTING);
+			break;
+	}
+
 	op_array = zend_compile(ZEND_EVAL_CODE);
 
 	zend_restore_lexical_state(&original_lex_state);
@@ -1318,7 +1329,7 @@ static zend_result check_nesting_at_end(void)
 	} while (0)
 
 #define RETURN_EXIT_NESTING_TOKEN(_token) do { \
-		if (exit_nesting(_token) && PARSER_MODE()) { \
+		if (exit_nesting(_token) != SUCCESS && PARSER_MODE()) { \
 			RETURN_TOKEN(T_ERROR); \
 		} else { \
 			RETURN_TOKEN(_token); \
@@ -1326,7 +1337,7 @@ static zend_result check_nesting_at_end(void)
 	} while(0)
 
 #define RETURN_END_TOKEN do { \
-		if (check_nesting_at_end() && PARSER_MODE()) { \
+		if (check_nesting_at_end() != SUCCESS && PARSER_MODE()) { \
 			RETURN_TOKEN(T_ERROR); \
 		} else { \
 			RETURN_TOKEN(END); \
@@ -1357,6 +1368,12 @@ TABS_AND_SPACES [ \t]*
 TOKENS [;:,.|^&+-/*=%!~$<>?@]
 ANY_CHAR [^]
 NEWLINE ("\r"|"\n"|"\r\n")
+OPTIONAL_WHITESPACE [ \n\r\t]*
+MULTI_LINE_COMMENT "/*"([^*]*"*"+)([^*/][^*]*"*"+)*"/"
+SINGLE_LINE_COMMENT "//".*[\n\r]
+HASH_COMMENT "#"(([^[].*[\n\r])|[\n\r])
+WHITESPACE_OR_COMMENTS ({WHITESPACE}|{MULTI_LINE_COMMENT}|{SINGLE_LINE_COMMENT}|{HASH_COMMENT})+
+OPTIONAL_WHITESPACE_OR_COMMENTS ({WHITESPACE}|{MULTI_LINE_COMMENT}|{SINGLE_LINE_COMMENT}|{HASH_COMMENT})*
 
 /* compute yyleng before each rule */
 <!*> := yyleng = YYCURSOR - SCNG(yy_text);
@@ -1390,7 +1407,7 @@ NEWLINE ("\r"|"\n"|"\r\n")
 	RETURN_TOKEN(T_ATTRIBUTE);
 }
 
-<ST_IN_SCRIPTING>"yield"{WHITESPACE}"from"[^a-zA-Z0-9_\x80-\xff] {
+<ST_IN_SCRIPTING>"yield"{WHITESPACE_OR_COMMENTS}"from"[^a-zA-Z0-9_\x80-\xff] {
 	yyless(yyleng - 1);
 	HANDLE_NEWLINES(yytext, yyleng);
 	RETURN_TOKEN_WITH_IDENT(T_YIELD_FROM);
@@ -1532,11 +1549,11 @@ NEWLINE ("\r"|"\n"|"\r\n")
  * The enum keyword must be followed by whitespace and another identifier.
  * This avoids the BC break of using enum in classes, namespaces, functions and constants.
  */
-<ST_IN_SCRIPTING>"enum"{WHITESPACE}("extends"|"implements") {
+<ST_IN_SCRIPTING>"enum"{WHITESPACE_OR_COMMENTS}("extends"|"implements") {
 	yyless(4);
 	RETURN_TOKEN_WITH_STR(T_STRING, 0);
 }
-<ST_IN_SCRIPTING>"enum"{WHITESPACE}[a-zA-Z_\x80-\xff] {
+<ST_IN_SCRIPTING>"enum"{WHITESPACE_OR_COMMENTS}[a-zA-Z_\x80-\xff] {
 	yyless(4);
 	RETURN_TOKEN_WITH_IDENT(T_ENUM);
 }
@@ -1714,6 +1731,10 @@ NEWLINE ("\r"|"\n"|"\r\n")
 	RETURN_TOKEN_WITH_IDENT(T_PUBLIC);
 }
 
+<ST_IN_SCRIPTING>"readonly" {
+	RETURN_TOKEN_WITH_IDENT(T_READONLY);
+}
+
 <ST_IN_SCRIPTING>"unset" {
 	RETURN_TOKEN_WITH_IDENT(T_UNSET);
 }
@@ -1854,7 +1875,7 @@ NEWLINE ("\r"|"\n"|"\r\n")
 	RETURN_TOKEN(T_SR);
 }
 
-<ST_IN_SCRIPTING>"&"{TABS_AND_SPACES}("$"|"...") {
+<ST_IN_SCRIPTING>"&"{OPTIONAL_WHITESPACE_OR_COMMENTS}("$"|"...") {
 	yyless(1);
 	RETURN_TOKEN(T_AMPERSAND_FOLLOWED_BY_VAR_OR_VARARG);
 }

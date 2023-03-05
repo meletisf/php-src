@@ -26,6 +26,10 @@ function testInvalid($from, $to) {
 testValid("", "");
 echo "Identification passes on empty string... good start!\n";
 
+/* RFC says that 0x00 should be Base64-encoded */
+testValidString("\x00", "&AAA-", 'UTF-8', 'UTF7-IMAP');
+echo "Null byte converted correctly\n";
+
 /* Identification and conversion of ASCII characters (minus &) */
 for ($i = 0x20; $i <= 0x7E; $i++) {
 	if ($i == 0x26) // '&'
@@ -109,22 +113,31 @@ if (strlen($testString) != 4)
 	die("Ouch!");
 $testString = substr($testString, 2, 2) . substr($testString, 0, 2);
 identifyInvalidString("&" . mBase64($testString) . "-", 'UTF7-IMAP');
+/* (Or could appear by itself) */
+$testString2 = substr($testString, 0, 2);
+identifyInvalidString("&" . mBase64($testString2) . "-", 'UTF7-IMAP');
 
 /* ...and we should detect this wherever it occurs */
-$singleChar = mb_convert_encoding("１", 'UTF-16BE', 'ASCII');
+$singleChar = "\x00\x01";
 $doubleChar = mb_convert_encoding("\x00\x01\x04\x01", 'UTF-16BE', 'UTF-32BE');
 if (strlen($doubleChar) != 4)
 	die("That was supposed to be a surrogate pair");
 identifyInvalidString("&" . mBase64($singleChar . $testString) . "-", 'UTF7-IMAP');
 identifyInvalidString("&" . mBase64($singleChar . $singleChar . $testString) . "-", 'UTF7-IMAP');
 identifyInvalidString("&" . mBase64($singleChar . $singleChar . $singleChar . $testString) . "-", 'UTF7-IMAP');
+identifyInvalidString("&" . mBase64($singleChar . $testString2) . "-", 'UTF7-IMAP');
+identifyInvalidString("&" . mBase64($singleChar . $singleChar . $testString2) . "-", 'UTF7-IMAP');
+identifyInvalidString("&" . mBase64($singleChar . $singleChar . $singleChar . $testString2) . "-", 'UTF7-IMAP');
 identifyInvalidString("&" . mBase64($doubleChar . $testString) . "-", 'UTF7-IMAP');
 identifyInvalidString("&" . mBase64($singleChar . $doubleChar . $testString) . "-", 'UTF7-IMAP');
 identifyInvalidString("&" . mBase64($singleChar . $singleChar . $doubleChar . $testString) . "-", 'UTF7-IMAP');
+identifyInvalidString("&" . mBase64($doubleChar . $testString2) . "-", 'UTF7-IMAP');
+identifyInvalidString("&" . mBase64($singleChar . $doubleChar . $testString2) . "-", 'UTF7-IMAP');
+identifyInvalidString("&" . mBase64($singleChar . $singleChar . $doubleChar . $testString2) . "-", 'UTF7-IMAP');
 
 /* 2. The first half of a surrogate pair might be followed by an invalid 2nd part, */
 $testString = mb_convert_encoding("\x00\x01\x04\x00", 'UTF-16BE', 'UTF-32BE');
-$testString = substr($testString, 0, 2) . mb_convert_encoding("a", 'UTF-16BE', 'ASCII');
+$testString = substr($testString, 0, 2) . "\x00a";
 identifyInvalidString("&" . mBase64($testString) . "-", 'UTF7-IMAP');
 
 /* ...and we should also detect that wherever it occurs... */
@@ -190,11 +203,37 @@ testValid("&" . mBase64(utf16BE("西红柿") . $longChar1) . "-", "西红柿" . 
 /* Multiple sections of valid ASCII _and_ Base64-encoded text */
 testValid("123&" . mBase64(utf16BE("１２３")) . "-abc&" . mBase64(utf16BE("☺")) . "-.", "123１２３abc☺.");
 
+/* If a & character appears right after a non-ASCII character, we must first close the Base64
+ * section and then emit &- */
+testValidString("☺&", "&Jjo-&-", "UTF-8", "UTF7-IMAP", false);
+testValidString("西瓜&", "&iX903A-&-", "UTF-8", "UTF7-IMAP", false);
+testValidString("西红柿&", "&iX9+omf,-&-", "UTF-8", "UTF7-IMAP", false);
+
 echo "Identification and conversion of valid text is working... perfect!\n";
 
+// Try illegal Unicode codepoint (> 0x10FFFF)
+convertInvalidString("\x00\x20\x00\x00", "%", "UCS-4BE", "UTF7-IMAP");
+
+// Test "long" illegal character markers
+mb_substitute_character("long");
+convertInvalidString("\x10", "%", "UTF7-IMAP", "UTF-8");
+convertInvalidString("\x80", "%", "UTF7-IMAP", "UTF-8");
+convertInvalidString("abc&", "abc%", "UTF7-IMAP", "UTF-8"); // The & starts a Base-64 coded section, which is OK... but there's no data in it
+convertInvalidString("&**-", "%*-", "UTF7-IMAP", "UTF-8"); // When we hit the first bad byte in a Base-64 coded section, it drops us back into the default mode, so the following characters are literal
+
+// Try strings where Base64 has an extra trailing byte which is not needed
+convertInvalidString('&RR8I', "\xE4\x94\x9F%", 'UTF7-IMAP', 'UTF-8');
+convertInvalidString('&RR8IAAA', "\xE4\x94\x9F\xE0\xA0\x80%", 'UTF7-IMAP', 'UTF-8');
+
+// It is useless for a Base64 section to only contain a single 'A'
+// (which decodes to only zero bits)
+convertInvalidString("&A", "\x00\x00\x00%", 'UTF7-IMAP', 'UTF-32BE');
+
+echo "Done!\n";
 ?>
 --EXPECT--
 Identification passes on empty string... good start!
+Null byte converted correctly
 Testing all valid single-character ASCII strings... check!
 Non-ASCII characters convert to illegal char marker... yes!
 & can be Base64-encoded... yes!
@@ -204,3 +243,4 @@ Testing valid strings which use '&-' for '&'... good!
 Identification fails when Base64 sections contain non-Base64 bytes... right!
 Identification fails when UTF-16 text is invalid... no sweat!
 Identification and conversion of valid text is working... perfect!
+Done!

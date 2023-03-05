@@ -55,9 +55,9 @@
 /* emulate flex constructs */
 #define BEGIN(state) YYSETCONDITION(STATE(state))
 #define YYSTATE      YYGETCONDITION()
-#define yytext       ((char*)SCNG(yy_text))
+#define yytext       ((const char*)SCNG(yy_text))
 #define yyleng       SCNG(yy_leng)
-#define yyless(x)    do {	YYCURSOR = (unsigned char*)yytext + x; \
+#define yyless(x)    do {	YYCURSOR = (const unsigned char*)yytext + x; \
 							yyleng   = (unsigned int)x; } while(0)
 
 /* #define yymore()     goto yymore_restart */
@@ -153,7 +153,7 @@ ZEND_API zend_ini_scanner_globals ini_scanner_globals;
 
 static inline zend_result convert_to_number(zval *retval, const char *str, const int str_len)
 {
-	zend_uchar type;
+	uint8_t type;
 	int overflow;
 	zend_long lval;
 	double dval;
@@ -208,9 +208,9 @@ static void yy_pop_state(void)
 	zend_stack_del_top(&SCNG(state_stack));
 }
 
-static void yy_scan_buffer(char *str, unsigned int len)
+static void yy_scan_buffer(const char *str, unsigned int len)
 {
-	YYCURSOR = (YYCTYPE*)str;
+	YYCURSOR = (const YYCTYPE*)str;
 	SCNG(yy_start) = YYCURSOR;
 	YYLIMIT  = YYCURSOR + len;
 }
@@ -261,7 +261,7 @@ ZEND_COLD int zend_ini_scanner_get_lineno(void)
 /* }}} */
 
 /* {{{ zend_ini_scanner_get_filename() */
-ZEND_COLD char *zend_ini_scanner_get_filename(void)
+ZEND_COLD const char *zend_ini_scanner_get_filename(void)
 {
 	return ini_filename ? ZSTR_VAL(ini_filename) : "Unknown";
 }
@@ -288,7 +288,7 @@ zend_result zend_ini_open_file_for_scanning(zend_file_handle *fh, int scanner_mo
 /* }}} */
 
 /* {{{ zend_ini_prepare_string_for_scanning() */
-zend_result zend_ini_prepare_string_for_scanning(char *str, int scanner_mode)
+zend_result zend_ini_prepare_string_for_scanning(const char *str, int scanner_mode)
 {
 	int len = (int)strlen(str);
 
@@ -303,7 +303,7 @@ zend_result zend_ini_prepare_string_for_scanning(char *str, int scanner_mode)
 /* }}} */
 
 /* {{{ zend_ini_escape_string() */
-static void zend_ini_escape_string(zval *lval, char *str, int len, char quote_type)
+static void zend_ini_escape_string(zval *lval, const char *str, int len, char quote_type)
 {
 	char *s, *t;
 	char *end;
@@ -493,7 +493,7 @@ SECTION_VALUE_CHARS ([^$\n\r;"'\]\\]|("\\"{ANY_CHAR})|{LITERAL_DOLLAR})
 }
 
 <ST_RAW>{RAW_VALUE_CHARS} { /* Raw value, only used when SCNG(scanner_mode) == ZEND_INI_SCANNER_RAW. */
-	unsigned char *sc = NULL;
+	const unsigned char *sc = NULL;
 	EAT_LEADING_WHITESPACE();
 	while (YYCURSOR < YYLIMIT) {
 		switch (*YYCURSOR) {
@@ -591,31 +591,35 @@ end_raw_value_chars:
 		return 0;
 	}
 
-	while (YYCURSOR < YYLIMIT) {
-		switch (*YYCURSOR++) {
+	const unsigned char *s = SCNG(yy_text);
+
+	while (s < YYLIMIT) {
+		switch (*s++) {
 			case '"':
-				if (YYCURSOR < YYLIMIT && YYCURSOR[-2] == '\\' && *YYCURSOR != '\r' && *YYCURSOR != '\n') {
-					continue;
-				}
 				break;
 			case '$':
-				if (*YYCURSOR == '{') {
+				if (s < YYLIMIT && *s == '{') {
 					break;
 				}
 				continue;
 			case '\\':
-				if (YYCURSOR < YYLIMIT && *YYCURSOR != '"') {
-					YYCURSOR++;
+				if (s < YYLIMIT) {
+					unsigned char escaped = *s++;
+					/* A special case for Windows paths, e.g. key="C:\path\" */
+					if (escaped == '"' && (s >= YYLIMIT || *s == '\n' || *s == '\r')) {
+						break;
+					}
 				}
 				ZEND_FALLTHROUGH;
 			default:
 				continue;
 		}
 
-		YYCURSOR--;
+		s--;
 		break;
 	}
 
+	YYCURSOR = s;
 	yyleng = YYCURSOR - SCNG(yy_text);
 
 	zend_ini_escape_string(ini_lval, yytext, yyleng, '"');

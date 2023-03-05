@@ -9,12 +9,13 @@ $rc = new ReflectionClass("ReflectionClass");
 echo $rc;
 ?>
 --EXPECT--
-Class [ <internal:Reflection> class ReflectionClass implements Reflector, Stringable ] {
+Class [ <internal:Reflection> class ReflectionClass implements Stringable, Reflector ] {
 
-  - Constants [3] {
+  - Constants [4] {
     Constant [ public int IS_IMPLICIT_ABSTRACT ] { 16 }
     Constant [ public int IS_EXPLICIT_ABSTRACT ] { 64 }
     Constant [ public int IS_FINAL ] { 32 }
+    Constant [ public int IS_READONLY ] { 65536 }
   }
 
   - Static properties [0] {
@@ -27,7 +28,7 @@ Class [ <internal:Reflection> class ReflectionClass implements Reflector, String
     Property [ public string $name ]
   }
 
-  - Methods [55] {
+  - Methods [56] {
     Method [ <internal:Reflection> private method __clone ] {
 
       - Parameters [0] {
@@ -284,6 +285,13 @@ Class [ <internal:Reflection> class ReflectionClass implements Reflector, String
       - Tentative return [ bool ]
     }
 
+    Method [ <internal:Reflection> public method isReadOnly ] {
+
+      - Parameters [0] {
+      }
+      - Return [ bool ]
+    }
+
     Method [ <internal:Reflection> public method getModifiers ] {
 
       - Parameters [0] {
@@ -341,7 +349,7 @@ Class [ <internal:Reflection> class ReflectionClass implements Reflector, String
 
       - Parameters [0] {
       }
-      - Tentative return [ ?array ]
+      - Tentative return [ array ]
     }
 
     Method [ <internal:Reflection> public method getStaticPropertyValue ] {
@@ -432,7 +440,7 @@ Class [ <internal:Reflection> class ReflectionClass implements Reflector, String
         Parameter #0 [ <optional> ?string $name = null ]
         Parameter #1 [ <optional> int $flags = 0 ]
       }
-      - Tentative return [ array ]
+      - Return [ array ]
     }
   }
 }

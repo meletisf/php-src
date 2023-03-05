@@ -832,7 +832,7 @@ local function parseoperand(param, isqword)
       if t.disp then break end
 
       -- [reg+xreg...]
-      local xreg, tailx = match(tailr, "^+%s*([@%w_:]+)%s*(.*)$")
+      local xreg, tailx = match(tailr, "^%+%s*([@%w_:]+)%s*(.*)$")
       xreg, t.xreg, tp = rtexpr(xreg)
       if not t.xreg then
 	-- [reg+-expr]
@@ -1147,6 +1147,8 @@ local map_op = {
   rep_0 =	"F3",
   repe_0 =	"F3",
   repz_0 =	"F3",
+  endbr32_0 =	"F30F1EFB",
+  endbr64_0 =	"F30F1EFA",
   -- F4: *hlt
   cmc_0 =	"F5",
   -- F6: test... mb,i; div... mb

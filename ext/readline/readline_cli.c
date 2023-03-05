@@ -135,6 +135,7 @@ static zend_string *cli_get_prompt(char *block, char prompt) /* {{{ */
 {
 	smart_str retval = {0};
 	char *prompt_spec = CLIR_G(prompt) ? CLIR_G(prompt) : DEFAULT_PROMPT;
+	bool unicode_warned = false;
 
 	do {
 		if (*prompt_spec == '\\') {
@@ -193,7 +194,16 @@ static zend_string *cli_get_prompt(char *block, char prompt) /* {{{ */
 				prompt_spec = prompt_end;
 			}
 		} else {
-			smart_str_appendc(&retval, *prompt_spec);
+			if (!(*prompt_spec & 0x80)) {
+				smart_str_appendc(&retval, *prompt_spec);
+			} else {
+				if (!unicode_warned) {
+					zend_error(E_WARNING,
+						"prompt contains unsupported unicode characters");
+					unicode_warned = true;
+				}
+				smart_str_appendc(&retval, '?');
+			}
 		}
 	} while (++prompt_spec && *prompt_spec);
 	smart_str_0(&retval);
@@ -761,12 +771,6 @@ PHP_MINIT_FUNCTION(cli_readline)
 	ZEND_INIT_MODULE_GLOBALS(cli_readline, cli_readline_init_globals, NULL);
 	REGISTER_INI_ENTRIES();
 
-#if HAVE_LIBEDIT
-	REGISTER_STRING_CONSTANT("READLINE_LIB", "libedit", CONST_CS|CONST_PERSISTENT);
-#else
-	REGISTER_STRING_CONSTANT("READLINE_LIB", "readline", CONST_CS|CONST_PERSISTENT);
-#endif
-
 	GET_SHELL_CB(cb);
 	if (cb) {
 		cb->cli_shell_write = readline_shell_write;
@@ -796,7 +800,7 @@ PHP_MSHUTDOWN_FUNCTION(cli_readline)
 PHP_MINFO_FUNCTION(cli_readline)
 {
 	php_info_print_table_start();
-	php_info_print_table_header(2, "Readline Support", "enabled");
+	php_info_print_table_row(2, "Readline Support", "enabled");
 #ifdef PHP_WIN32
 	php_info_print_table_row(2, "Readline library", "WinEditLine");
 #else

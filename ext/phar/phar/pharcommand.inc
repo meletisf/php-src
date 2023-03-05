@@ -92,7 +92,7 @@ class PharCommand extends CLICommand
                 'typ' => 'select',
                 'val' => NULL,
                 'inf' => '<method> Selects the hash algorithm.',
-                'select' => array('md5' => 'MD5','sha1' => 'SHA1')
+                'select' => ['md5' => 'MD5','sha1' => 'SHA1', 'sha256' => 'SHA256', 'sha512' => 'SHA512', 'openssl' => 'OPENSSL', 'openssl_sha256' => 'OPENSSL_SHA256', 'openssl_sha512' => 'OPENSSL_SHA512']
             ),
             'i' => array(
                 'typ' => 'regex',
@@ -156,6 +156,8 @@ class PharCommand extends CLICommand
         $hash_avail = Phar::getSupportedSignatures();
         $hash_optional = array('SHA-256' => 'SHA256',
                                'SHA-512' => 'SHA512',
+                               'OpenSSL_sha256' => 'OpenSSL_SHA256',
+                               'OpenSSL_sha512' => 'OpenSSL_SHA512',
                                'OpenSSL' => 'OpenSSL');
         if (!in_array('OpenSSL', $hash_avail)) {
             unset($phar_args['y']);
@@ -429,6 +431,16 @@ class PharCommand extends CLICommand
                     self::error("Cannot use OpenSSL signing without key.\n");
                 }
                 return Phar::OPENSSL;
+            case 'openssl_sha256':
+                if (!$privkey) {
+                    self::error("Cannot use OpenSSL signing without key.\n");
+                }
+                return Phar::OPENSSL_SHA256;
+            case 'openssl_sha512':
+                if (!$privkey) {
+                    self::error("Cannot use OpenSSL signing without key.\n");
+                }
+                return Phar::OPENSSL_SHA512;
         }
     }
     // }}}
@@ -1286,7 +1298,7 @@ class PharCommand extends CLICommand
      */
     public function cli_cmd_inf_meta_get()
     {
-        return "Get meta information of a PHAR entry or a PHAR package in serialized from. " .
+        return "Get meta information of a PHAR entry or a PHAR package in serialized form. " .
                "If no output file is specified for meta data then stdout is being used.\n" .
                "You can also specify a particular index using -k. In that case the metadata is " .
                "expected to be an array and the value of the given index is returned using echo " .
@@ -1586,7 +1598,7 @@ class PharCommand extends CLICommand
             if (is_bool($v)) {
                 $v = $v ? 'enabled' : 'disabled';
             }
-            printf("%-${klen}s  %s\n", $k.':', $v);
+            printf("%-{$klen}s  %s\n", $k.':', $v);
         }
     }
     // }}}

@@ -51,11 +51,6 @@ PHPAPI zend_class_entry  *spl_ce_SplStack;
 #define SPL_LLIST_ADDREF(elem) SPL_LLIST_RC(elem)++
 #define SPL_LLIST_CHECK_ADDREF(elem) if (elem) SPL_LLIST_RC(elem)++
 
-#define SPL_DLLIST_IT_DELETE 0x00000001 /* Delete flag makes the iterator delete the current element on next */
-#define SPL_DLLIST_IT_LIFO   0x00000002 /* LIFO flag makes the iterator traverse the structure as a LastInFirstOut */
-#define SPL_DLLIST_IT_MASK   0x00000003 /* Mask to isolate flags related to iterators */
-#define SPL_DLLIST_IT_FIX    0x00000004 /* Backward/Forward bit is fixed */
-
 #ifdef accept
 #undef accept
 #endif
@@ -91,7 +86,7 @@ struct _spl_dllist_object {
 
 /* define an overloaded iterator structure */
 struct _spl_dllist_it {
-	zend_user_iterator     intern;
+	zend_object_iterator   intern;
 	spl_ptr_llist_element *traverse_pointer;
 	int                    traverse_position;
 	int                    flags;
@@ -104,7 +99,7 @@ static inline spl_dllist_object *spl_dllist_from_obj(zend_object *obj) /* {{{ */
 
 #define Z_SPLDLLIST_P(zv)  spl_dllist_from_obj(Z_OBJ_P((zv)))
 
-static spl_ptr_llist *spl_ptr_llist_init() /* {{{ */
+static spl_ptr_llist *spl_ptr_llist_init(void) /* {{{ */
 {
 	spl_ptr_llist *llist = emalloc(sizeof(spl_ptr_llist));
 
@@ -349,14 +344,11 @@ static zend_object *spl_dllist_object_new_ex(zend_class_entry *class_type, zend_
 	while (parent) {
 		if (parent == spl_ce_SplStack) {
 			intern->flags |= (SPL_DLLIST_IT_FIX | SPL_DLLIST_IT_LIFO);
-			intern->std.handlers = &spl_handler_SplDoublyLinkedList;
 		} else if (parent == spl_ce_SplQueue) {
 			intern->flags |= SPL_DLLIST_IT_FIX;
-			intern->std.handlers = &spl_handler_SplDoublyLinkedList;
 		}
 
 		if (parent == spl_ce_SplDoublyLinkedList) {
-			intern->std.handlers = &spl_handler_SplDoublyLinkedList;
 			break;
 		}
 
@@ -409,7 +401,7 @@ static zend_object *spl_dllist_object_clone(zend_object *old_object) /* {{{ */
 }
 /* }}} */
 
-static int spl_dllist_object_count_elements(zend_object *object, zend_long *count) /* {{{ */
+static zend_result spl_dllist_object_count_elements(zend_object *object, zend_long *count) /* {{{ */
 {
 	spl_dllist_object *intern = spl_dllist_from_obj(object);
 
@@ -575,7 +567,7 @@ PHP_METHOD(SplDoublyLinkedList, top)
 		RETURN_THROWS();
 	}
 
-	ZVAL_COPY_DEREF(return_value, value);
+	RETURN_COPY_DEREF(value);
 }
 /* }}} */
 
@@ -597,7 +589,7 @@ PHP_METHOD(SplDoublyLinkedList, bottom)
 		RETURN_THROWS();
 	}
 
-	ZVAL_COPY_DEREF(return_value, value);
+	RETURN_COPY_DEREF(value);
 }
 /* }}} */
 
@@ -708,7 +700,7 @@ PHP_METHOD(SplDoublyLinkedList, offsetGet)
 		RETURN_THROWS();
 	}
 
-	ZVAL_COPY_DEREF(return_value, &element->data);
+	RETURN_COPY_DEREF(&element->data);
 } /* }}} */
 
 /* {{{ Sets the value at the specified $index to $newval. */
@@ -817,8 +809,7 @@ static void spl_dllist_it_dtor(zend_object_iterator *iter) /* {{{ */
 
 	SPL_LLIST_CHECK_DELREF(iterator->traverse_pointer);
 
-	zend_user_it_invalidate_current(iter);
-	zval_ptr_dtor(&iterator->intern.it.data);
+	zval_ptr_dtor(&iterator->intern.data);
 }
 /* }}} */
 
@@ -917,8 +908,6 @@ static void spl_dllist_it_move_forward(zend_object_iterator *iter) /* {{{ */
 	spl_dllist_it *iterator = (spl_dllist_it *)iter;
 	spl_dllist_object *object = Z_SPLDLLIST_P(&iter->data);
 
-	zend_user_it_invalidate_current(iter);
-
 	spl_dllist_it_helper_move_forward(&iterator->traverse_pointer, &iterator->traverse_position, object->llist, iterator->flags);
 }
 /* }}} */
@@ -1001,7 +990,7 @@ PHP_METHOD(SplDoublyLinkedList, current)
 	if (element == NULL || Z_ISUNDEF(element->data)) {
 		RETURN_NULL();
 	} else {
-		ZVAL_COPY_DEREF(return_value, &element->data);
+		RETURN_COPY_DEREF(&element->data);
 	}
 }
 /* }}} */
@@ -1035,12 +1024,10 @@ PHP_METHOD(SplDoublyLinkedList, serialize)
 		current = next;
 	}
 
-	smart_str_0(&buf);
-
 	/* done */
 	PHP_VAR_SERIALIZE_DESTROY(var_hash);
 
-	RETURN_NEW_STR(buf.s);
+	RETURN_STR(smart_str_extract(&buf));
 } /* }}} */
 
 /* {{{ Unserializes storage */
@@ -1194,6 +1181,7 @@ PHP_METHOD(SplDoublyLinkedList, add)
 
 		/* Get the element we want to insert before */
 		element = spl_ptr_llist_offset(intern->llist, index, intern->flags & SPL_DLLIST_IT_LIFO);
+		ZEND_ASSERT(element != NULL);
 
 		ZVAL_COPY(&elem->data, value);
 		SPL_LLIST_RC(elem) = 1;
@@ -1217,7 +1205,7 @@ PHP_METHOD(SplDoublyLinkedList, add)
 PHP_METHOD(SplDoublyLinkedList, __debugInfo)
 {
 	if (zend_parse_parameters_none() == FAILURE) {
-		return;
+		RETURN_THROWS();
 	}
 
 	RETURN_ARR(spl_dllist_object_get_debug_info(Z_OBJ_P(ZEND_THIS)));
@@ -1235,9 +1223,8 @@ static const zend_object_iterator_funcs spl_dllist_it_funcs = {
 	NULL, /* get_gc */
 }; /* }}} */
 
-zend_object_iterator *spl_dllist_get_iterator(zend_class_entry *ce, zval *object, int by_ref) /* {{{ */
+static zend_object_iterator *spl_dllist_get_iterator(zend_class_entry *ce, zval *object, int by_ref) /* {{{ */
 {
-	spl_dllist_it *iterator;
 	spl_dllist_object *dllist_object = Z_SPLDLLIST_P(object);
 
 	if (by_ref) {
@@ -1245,21 +1232,19 @@ zend_object_iterator *spl_dllist_get_iterator(zend_class_entry *ce, zval *object
 		return NULL;
 	}
 
-	iterator = emalloc(sizeof(spl_dllist_it));
+	spl_dllist_it *iterator = emalloc(sizeof(spl_dllist_it));
 
-	zend_iterator_init((zend_object_iterator*)iterator);
+	zend_iterator_init(&iterator->intern);
 
-	ZVAL_OBJ_COPY(&iterator->intern.it.data, Z_OBJ_P(object));
-	iterator->intern.it.funcs    = &spl_dllist_it_funcs;
-	iterator->intern.ce          = ce;
+	ZVAL_OBJ_COPY(&iterator->intern.data, Z_OBJ_P(object));
+	iterator->intern.funcs       = &spl_dllist_it_funcs;
 	iterator->traverse_position  = dllist_object->traverse_position;
 	iterator->traverse_pointer   = dllist_object->traverse_pointer;
 	iterator->flags              = dllist_object->flags & SPL_DLLIST_IT_MASK;
-	ZVAL_UNDEF(&iterator->intern.value);
 
 	SPL_LLIST_CHECK_ADDREF(iterator->traverse_pointer);
 
-	return &iterator->intern.it;
+	return &iterator->intern;
 }
 /* }}} */
 
@@ -1269,6 +1254,7 @@ PHP_MINIT_FUNCTION(spl_dllist) /* {{{ */
 		zend_ce_iterator, zend_ce_countable, zend_ce_arrayaccess, zend_ce_serializable
 	);
 	spl_ce_SplDoublyLinkedList->create_object = spl_dllist_object_new;
+	spl_ce_SplDoublyLinkedList->default_object_handlers = &spl_handler_SplDoublyLinkedList;
 	spl_ce_SplDoublyLinkedList->get_iterator = spl_dllist_get_iterator;
 
 	memcpy(&spl_handler_SplDoublyLinkedList, &std_object_handlers, sizeof(zend_object_handlers));
@@ -1278,11 +1264,6 @@ PHP_MINIT_FUNCTION(spl_dllist) /* {{{ */
 	spl_handler_SplDoublyLinkedList.count_elements = spl_dllist_object_count_elements;
 	spl_handler_SplDoublyLinkedList.get_gc = spl_dllist_object_get_gc;
 	spl_handler_SplDoublyLinkedList.free_obj = spl_dllist_object_free_storage;
-
-	REGISTER_SPL_CLASS_CONST_LONG(SplDoublyLinkedList, "IT_MODE_LIFO",  SPL_DLLIST_IT_LIFO);
-	REGISTER_SPL_CLASS_CONST_LONG(SplDoublyLinkedList, "IT_MODE_FIFO",  0);
-	REGISTER_SPL_CLASS_CONST_LONG(SplDoublyLinkedList, "IT_MODE_DELETE",SPL_DLLIST_IT_DELETE);
-	REGISTER_SPL_CLASS_CONST_LONG(SplDoublyLinkedList, "IT_MODE_KEEP",  0);
 
 	spl_ce_SplQueue = register_class_SplQueue(spl_ce_SplDoublyLinkedList);
 	spl_ce_SplQueue->create_object = spl_dllist_object_new;

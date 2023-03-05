@@ -41,6 +41,12 @@ typedef struct _php_process_handle {
 #endif
 	int npipes;
 	zend_resource **pipes;
-	char *command;
+	zend_string *command;
 	php_process_env env;
+#if HAVE_SYS_WAIT_H
+	/* We can only request the status once before it becomes unavailable.
+	 * Cache the result so we can request it multiple times. */
+	int cached_exit_wait_status_value;
+	bool has_cached_exit_wait_status;
+#endif
 } php_process_handle;

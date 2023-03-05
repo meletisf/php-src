@@ -29,8 +29,8 @@
 
 #include "ext/standard/info.h"
 #include "ext/standard/file.h"
+#include "Zend/zend_attributes.h"
 #include "Zend/zend_exceptions.h"
-#include "Zend/zend_interfaces.h"
 
 #include "php_ftp.h"
 #include "ftp.h"
@@ -112,8 +112,6 @@ PHP_MINIT_FUNCTION(ftp)
 
 	php_ftp_ce = register_class_FTP_Connection();
 	php_ftp_ce->create_object = ftp_object_create;
-	php_ftp_ce->serialize = zend_class_serialize_deny;
-	php_ftp_ce->unserialize = zend_class_unserialize_deny;
 
 	memcpy(&ftp_object_handlers, &std_object_handlers, sizeof(zend_object_handlers));
 	ftp_object_handlers.offset = XtOffsetOf(php_ftp_object, std);
@@ -121,17 +119,8 @@ PHP_MINIT_FUNCTION(ftp)
 	ftp_object_handlers.free_obj = ftp_object_destroy;
 	ftp_object_handlers.clone_obj = NULL;
 
-	REGISTER_LONG_CONSTANT("FTP_ASCII",  FTPTYPE_ASCII, CONST_PERSISTENT | CONST_CS);
-	REGISTER_LONG_CONSTANT("FTP_TEXT",   FTPTYPE_ASCII, CONST_PERSISTENT | CONST_CS);
-	REGISTER_LONG_CONSTANT("FTP_BINARY", FTPTYPE_IMAGE, CONST_PERSISTENT | CONST_CS);
-	REGISTER_LONG_CONSTANT("FTP_IMAGE",  FTPTYPE_IMAGE, CONST_PERSISTENT | CONST_CS);
-	REGISTER_LONG_CONSTANT("FTP_AUTORESUME", PHP_FTP_AUTORESUME, CONST_PERSISTENT | CONST_CS);
-	REGISTER_LONG_CONSTANT("FTP_TIMEOUT_SEC", PHP_FTP_OPT_TIMEOUT_SEC, CONST_PERSISTENT | CONST_CS);
-	REGISTER_LONG_CONSTANT("FTP_AUTOSEEK", PHP_FTP_OPT_AUTOSEEK, CONST_PERSISTENT | CONST_CS);
-	REGISTER_LONG_CONSTANT("FTP_USEPASVADDRESS", PHP_FTP_OPT_USEPASVADDRESS, CONST_PERSISTENT | CONST_CS);
-	REGISTER_LONG_CONSTANT("FTP_FAILED", PHP_FTP_FAILED, CONST_PERSISTENT | CONST_CS);
-	REGISTER_LONG_CONSTANT("FTP_FINISHED", PHP_FTP_FINISHED, CONST_PERSISTENT | CONST_CS);
-	REGISTER_LONG_CONSTANT("FTP_MOREDATA", PHP_FTP_MOREDATA, CONST_PERSISTENT | CONST_CS);
+	register_ftp_symbols(module_number);
+
 	return SUCCESS;
 }
 
@@ -1227,6 +1216,7 @@ PHP_FUNCTION(ftp_close)
 {
 	zval		*z_ftp;
 	php_ftp_object *obj;
+	bool success = true;
 
 	if (zend_parse_parameters(ZEND_NUM_ARGS(), "O", &z_ftp, php_ftp_ce) == FAILURE) {
 		RETURN_THROWS();
@@ -1234,12 +1224,12 @@ PHP_FUNCTION(ftp_close)
 
 	obj = ftp_object_from_zend_object(Z_OBJ_P(z_ftp));
 	if (obj->ftp) {
-		ftp_quit(obj->ftp);
+		success = ftp_quit(obj->ftp);
 		ftp_close(obj->ftp);
 		obj->ftp = NULL;
 	}
 
-	RETURN_TRUE;
+	RETURN_BOOL(success);
 }
 /* }}} */
 
@@ -1258,7 +1248,7 @@ PHP_FUNCTION(ftp_set_option)
 	switch (option) {
 		case PHP_FTP_OPT_TIMEOUT_SEC:
 			if (Z_TYPE_P(z_value) != IS_LONG) {
-				zend_argument_type_error(3, "must be of type int for the FTP_TIMEOUT_SEC option, %s given", zend_zval_type_name(z_value));
+				zend_argument_type_error(3, "must be of type int for the FTP_TIMEOUT_SEC option, %s given", zend_zval_value_name(z_value));
 				RETURN_THROWS();
 			}
 			if (Z_LVAL_P(z_value) <= 0) {
@@ -1270,7 +1260,7 @@ PHP_FUNCTION(ftp_set_option)
 			break;
 		case PHP_FTP_OPT_AUTOSEEK:
 			if (Z_TYPE_P(z_value) != IS_TRUE && Z_TYPE_P(z_value) != IS_FALSE) {
-				zend_argument_type_error(3, "must be of type bool for the FTP_AUTOSEEK option, %s given", zend_zval_type_name(z_value));
+				zend_argument_type_error(3, "must be of type bool for the FTP_AUTOSEEK option, %s given", zend_zval_value_name(z_value));
 				RETURN_THROWS();
 			}
 			ftp->autoseek = Z_TYPE_P(z_value) == IS_TRUE ? 1 : 0;
@@ -1278,7 +1268,7 @@ PHP_FUNCTION(ftp_set_option)
 			break;
 		case PHP_FTP_OPT_USEPASVADDRESS:
 			if (Z_TYPE_P(z_value) != IS_TRUE && Z_TYPE_P(z_value) != IS_FALSE) {
-				zend_argument_type_error(3, "must be of type bool for the FTP_USEPASVADDRESS option, %s given", zend_zval_type_name(z_value));
+				zend_argument_type_error(3, "must be of type bool for the FTP_USEPASVADDRESS option, %s given", zend_zval_value_name(z_value));
 				RETURN_THROWS();
 			}
 			ftp->usepasvaddress = Z_TYPE_P(z_value) == IS_TRUE ? 1 : 0;

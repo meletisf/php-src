@@ -37,6 +37,8 @@
 #include "unicode_table_uhc.h"
 
 static int mbfl_filt_conv_uhc_wchar_flush(mbfl_convert_filter *filter);
+static size_t mb_uhc_to_wchar(unsigned char **in, size_t *in_len, uint32_t *buf, size_t bufsize, unsigned int *state);
+static void mb_wchar_to_uhc(uint32_t *in, size_t len, mb_convert_buf *buf, bool end);
 
 static const unsigned char mblen_table_uhc[] = { /* 0x81-0xFE */
   1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1,
@@ -67,7 +69,9 @@ const mbfl_encoding mbfl_encoding_uhc = {
 	mblen_table_uhc,
 	0,
 	&vtbl_uhc_wchar,
-	&vtbl_wchar_uhc
+	&vtbl_wchar_uhc,
+	mb_uhc_to_wchar,
+	mb_wchar_to_uhc
 };
 
 const struct mbfl_convert_vtbl vtbl_uhc_wchar = {
@@ -94,8 +98,6 @@ const struct mbfl_convert_vtbl vtbl_wchar_uhc = {
 
 int mbfl_filt_conv_uhc_wchar(int c, mbfl_convert_filter *filter)
 {
-	int w = 0, flag = 0;
-
 	switch (filter->status) {
 	case 0:
 		if (c >= 0 && c < 0x80) { /* latin */
@@ -104,59 +106,44 @@ int mbfl_filt_conv_uhc_wchar(int c, mbfl_convert_filter *filter)
 			filter->status = 1;
 			filter->cache = c;
 		} else {
-			CK((*filter->output_function)(c | MBFL_WCSGROUP_THROUGH, filter->data));
+			CK((*filter->output_function)(MBFL_BAD_INPUT, filter->data));
 		}
 		break;
 
 	case 1: /* dbcs second byte */
 		filter->status = 0;
-		int c1 = filter->cache;
+		int c1 = filter->cache, w = 0;
 
-		if (c1 >= 0x81 && c1 <= 0xa0 && c >= 0x41 && c <= 0xfe) {
+		if (c1 >= 0x81 && c1 <= 0xc6 && c >= 0x41 && c <= 0xfe) {
 			w = (c1 - 0x81)*190 + (c - 0x41);
 			if (w >= 0 && w < uhc1_ucs_table_size) {
-				flag = 1;
 				w = uhc1_ucs_table[w];
-			} else {
-				w = 0;
-			}
-		} else if (c1 >= 0xa1 && c1 <= 0xc6 && c >= 0x41 && c <= 0xfe) {
-			w = (c1 - 0xa1)*190 + (c - 0x41);
-			if (w >= 0 && w < uhc2_ucs_table_size) {
-				flag = 2;
-				w = uhc2_ucs_table[w];
-			} else {
-				w = 0;
 			}
 		} else if (c1 >= 0xc7 && c1 < 0xfe && c >= 0xa1 && c <= 0xfe) {
 			w = (c1 - 0xc7)*94 + (c - 0xa1);
 			if (w >= 0 && w < uhc3_ucs_table_size) {
-				flag = 3;
 				w = uhc3_ucs_table[w];
-			} else {
-				w = 0;
 			}
 		}
 
-		if (flag <= 0 || w <= 0) {
-			w = (c1 << 8) | c | MBFL_WCSPLANE_UHC;
+		if (w == 0) {
+			w = MBFL_BAD_INPUT;
 		}
 		CK((*filter->output_function)(w, filter->data));
 		break;
 
-	default:
-		filter->status = 0;
-		break;
+		EMPTY_SWITCH_DEFAULT_CASE();
 	}
 
-	return c;
+	return 0;
 }
 
 static int mbfl_filt_conv_uhc_wchar_flush(mbfl_convert_filter *filter)
 {
 	if (filter->status == 1) {
 		/* 2-byte character was truncated */
-		CK((*filter->output_function)(filter->cache | MBFL_WCSGROUP_THROUGH, filter->data));
+		filter->status = 0;
+		CK((*filter->output_function)(MBFL_BAD_INPUT, filter->data));
 	}
 
 	if (filter->flush_function) {
@@ -201,5 +188,109 @@ int mbfl_filt_conv_wchar_uhc(int c, mbfl_convert_filter *filter)
 		CK(mbfl_filt_conv_illegal_output(c, filter));
 	}
 
-	return c;
+	return 0;
+}
+
+static size_t mb_uhc_to_wchar(unsigned char **in, size_t *in_len, uint32_t *buf, size_t bufsize, unsigned int *state)
+{
+	unsigned char *p = *in, *e = p + *in_len;
+	uint32_t *out = buf, *limit = buf + bufsize;
+
+	e--; /* Stop the main loop 1 byte short of the end of the input */
+
+	while (p < e && out < limit) {
+		unsigned char c = *p++;
+
+		if (c < 0x80) {
+			*out++ = c;
+		} else if (c > 0x80 && c < 0xFE) {
+			/* We don't need to check p < e here; it's not possible that this pointer dereference
+			 * will be outside the input string, because of e-- above */
+			unsigned char c2 = *p++;
+			if (c2 < 0x41 || c2 == 0xFF) {
+				*out++ = MBFL_BAD_INPUT;
+				continue;
+			}
+			unsigned int w = 0;
+
+			if (c <= 0xC6) {
+				w = (c - 0x81)*190 + c2 - 0x41;
+				ZEND_ASSERT(w < uhc1_ucs_table_size);
+				w = uhc1_ucs_table[w];
+			} else if (c2 >= 0xA1) {
+				w = (c - 0xC7)*94 + c2 - 0xA1;
+				ZEND_ASSERT(w < uhc3_ucs_table_size);
+				w = uhc3_ucs_table[w];
+				if (!w) {
+					/* If c == 0xC9, we shouldn't have tried to read a 2-byte char at all... but it is faster
+					 * to fix up that rare case here rather than include an extra check in the hot path */
+					if (c == 0xC9) {
+						p--;
+					}
+					*out++ = MBFL_BAD_INPUT;
+					continue;
+				}
+			}
+			if (!w) {
+				w = MBFL_BAD_INPUT;
+			}
+			*out++ = w;
+		} else {
+			*out++ = MBFL_BAD_INPUT;
+		}
+	}
+
+	/* Finish up last byte of input string if there is one */
+	if (p == e && out < limit) {
+		unsigned char c = *p++;
+		*out++ = (c < 0x80) ? c : MBFL_BAD_INPUT;
+	}
+
+	*in_len = e - p + 1;
+	*in = p;
+	return out - buf;
+}
+
+static void mb_wchar_to_uhc(uint32_t *in, size_t len, mb_convert_buf *buf, bool end)
+{
+	unsigned char *out, *limit;
+	MB_CONVERT_BUF_LOAD(buf, out, limit);
+	MB_CONVERT_BUF_ENSURE(buf, out, limit, len);
+
+	while (len--) {
+		uint32_t w = *in++;
+		unsigned int s = 0;
+
+		if (w >= ucs_a1_uhc_table_min && w < ucs_a1_uhc_table_max) {
+			s = ucs_a1_uhc_table[w - ucs_a1_uhc_table_min];
+		} else if (w >= ucs_a2_uhc_table_min && w < ucs_a2_uhc_table_max) {
+			s = ucs_a2_uhc_table[w - ucs_a2_uhc_table_min];
+		} else if (w >= ucs_a3_uhc_table_min && w < ucs_a3_uhc_table_max) {
+			s = ucs_a3_uhc_table[w - ucs_a3_uhc_table_min];
+		} else if (w >= ucs_i_uhc_table_min && w < ucs_i_uhc_table_max) {
+			s = ucs_i_uhc_table[w - ucs_i_uhc_table_min];
+		} else if (w >= ucs_s_uhc_table_min && w < ucs_s_uhc_table_max) {
+			s = ucs_s_uhc_table[w - ucs_s_uhc_table_min];
+		} else if (w >= ucs_r1_uhc_table_min && w < ucs_r1_uhc_table_max) {
+			s = ucs_r1_uhc_table[w - ucs_r1_uhc_table_min];
+		} else if (w >= ucs_r2_uhc_table_min && w < ucs_r2_uhc_table_max) {
+			s = ucs_r2_uhc_table[w - ucs_r2_uhc_table_min];
+		}
+
+		if (!s) {
+			if (w == 0) {
+				out = mb_convert_buf_add(out, 0);
+			} else {
+				MB_CONVERT_ERROR(buf, out, limit, w, mb_wchar_to_uhc);
+				MB_CONVERT_BUF_ENSURE(buf, out, limit, len);
+			}
+		} else if (s < 0x80) {
+			out = mb_convert_buf_add(out, s);
+		} else {
+			MB_CONVERT_BUF_ENSURE(buf, out, limit, len + 2);
+			out = mb_convert_buf_add2(out, (s >> 8) & 0xFF, s & 0xFF);
+		}
+	}
+
+	MB_CONVERT_BUF_STORE(buf, out, limit);
 }

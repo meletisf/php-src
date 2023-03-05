@@ -22,7 +22,7 @@
 #include <zend.h>
 #include <zend_vm_opcodes.h>
 
-static const char *zend_vm_opcodes_names[202] = {
+static const char *zend_vm_opcodes_names[203] = {
 	"ZEND_NOP",
 	"ZEND_ADD",
 	"ZEND_SUB",
@@ -68,7 +68,7 @@ static const char *zend_vm_opcodes_names[202] = {
 	"ZEND_JMP",
 	"ZEND_JMPZ",
 	"ZEND_JMPNZ",
-	"ZEND_JMPZNZ",
+	NULL,
 	"ZEND_JMPZ_EX",
 	"ZEND_JMPNZ_EX",
 	"ZEND_CASE",
@@ -225,9 +225,10 @@ static const char *zend_vm_opcodes_names[202] = {
 	"ZEND_CHECK_UNDEF_ARGS",
 	"ZEND_FETCH_GLOBALS",
 	"ZEND_VERIFY_NEVER_TYPE",
+	"ZEND_CALLABLE_CONVERT",
 };
 
-static uint32_t zend_vm_opcodes_flags[202] = {
+static uint32_t zend_vm_opcodes_flags[203] = {
 	0x00000000,
 	0x00000b0b,
 	0x00000b0b,
@@ -273,7 +274,7 @@ static uint32_t zend_vm_opcodes_flags[202] = {
 	0x00000020,
 	0x00002007,
 	0x00002007,
-	0x03002007,
+	0x00000000,
 	0x00002007,
 	0x00002007,
 	0x00000705,
@@ -409,7 +410,7 @@ static uint32_t zend_vm_opcodes_flags[202] = {
 	0x00047000,
 	0x00040000,
 	0x00067000,
-	0x00040373,
+	0x00040b73,
 	0x00100101,
 	0x00100101,
 	0x00000101,
@@ -426,28 +427,30 @@ static uint32_t zend_vm_opcodes_flags[202] = {
 	0x0300030b,
 	0x00000301,
 	0x0000010b,
-	0x0000200b,
+	0x00002003,
+	0x00000101,
 	0x00000101,
 	0x00000101,
 	0x00000101,
 };
 
-ZEND_API const char* ZEND_FASTCALL zend_get_opcode_name(zend_uchar opcode) {
+ZEND_API const char* ZEND_FASTCALL zend_get_opcode_name(uint8_t opcode) {
 	if (UNEXPECTED(opcode > ZEND_VM_LAST_OPCODE)) {
 		return NULL;
 	}
 	return zend_vm_opcodes_names[opcode];
 }
-ZEND_API uint32_t ZEND_FASTCALL zend_get_opcode_flags(zend_uchar opcode) {
+ZEND_API uint32_t ZEND_FASTCALL zend_get_opcode_flags(uint8_t opcode) {
 	if (UNEXPECTED(opcode > ZEND_VM_LAST_OPCODE)) {
 		opcode = ZEND_NOP;
 	}
 	return zend_vm_opcodes_flags[opcode];
 }
-ZEND_API zend_uchar zend_get_opcode_id(const char *name, size_t length) {
-	zend_uchar opcode;
+ZEND_API uint8_t zend_get_opcode_id(const char *name, size_t length) {
+	uint8_t opcode;
 	for (opcode = 0; opcode < (sizeof(zend_vm_opcodes_names) / sizeof(zend_vm_opcodes_names[0])) - 1; opcode++) {
-		if (strncmp(zend_vm_opcodes_names[opcode], name, length) == 0) {
+		const char *opcode_name = zend_vm_opcodes_names[opcode];
+		if (opcode_name && strncmp(opcode_name, name, length) == 0) {
 			return opcode;
 		}
 	}

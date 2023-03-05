@@ -226,7 +226,11 @@ static zend_string *pdo_sqlite_last_insert_id(pdo_dbh_t *dbh, const zend_string 
 /* NB: doesn't handle binary strings... use prepared stmts for that */
 static zend_string* sqlite_handle_quoter(pdo_dbh_t *dbh, const zend_string *unquoted, enum pdo_param_type paramtype)
 {
-	char *quoted = safe_emalloc(2, ZSTR_LEN(unquoted), 3);
+	char *quoted;
+	if (ZSTR_LEN(unquoted) > (INT_MAX - 3) / 2) {
+		return NULL;
+	}
+	quoted = safe_emalloc(2, ZSTR_LEN(unquoted), 3);
 	/* TODO use %Q format? */
 	sqlite3_snprintf(2*ZSTR_LEN(unquoted) + 3, quoted, "'%q'", ZSTR_VAL(unquoted));
 	zend_string *quoted_str = zend_string_init(quoted, strlen(quoted), 0);
@@ -738,6 +742,9 @@ static const struct pdo_dbh_methods sqlite_methods = {
 
 static char *make_filename_safe(const char *filename)
 {
+	if (!filename) {
+		return NULL;
+	}
 	if (*filename && strncasecmp(filename, "file:", 5) == 0) {
 		if (PG(open_basedir) && *PG(open_basedir)) {
 			return NULL;
@@ -765,17 +772,8 @@ static int authorizer(void *autharg, int access_type, const char *arg3, const ch
 {
 	char *filename;
 	switch (access_type) {
-		case SQLITE_COPY: {
-					filename = make_filename_safe(arg4);
-			if (!filename) {
-				return SQLITE_DENY;
-			}
-			efree(filename);
-			return SQLITE_OK;
-		}
-
 		case SQLITE_ATTACH: {
-					filename = make_filename_safe(arg3);
+			filename = make_filename_safe(arg3);
 			if (!filename) {
 				return SQLITE_DENY;
 			}

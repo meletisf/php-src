@@ -677,13 +677,14 @@ void phar_metadata_tracker_copy(phar_metadata_tracker *dest, const phar_metadata
 /* }}} */
 
 /**
- * Increment reference counts after a metadata entry was copied
+ * Copy constructor for a non-persistent clone.
  */
 void phar_metadata_tracker_clone(phar_metadata_tracker *tracker) /* {{{ */
 {
 	Z_TRY_ADDREF_P(&tracker->val);
 	if (tracker->str) {
-		tracker->str = zend_string_copy(tracker->str);
+		/* Duplicate the string, as the original may have been persistent. */
+		tracker->str = zend_string_dup(tracker->str, false);
 	}
 }
 /* }}} */
@@ -857,6 +858,8 @@ static int phar_parse_pharfile(php_stream *fp, char *fname, size_t fname_len, ch
 		PHAR_GET_32(sig_ptr, sig_flags);
 
 		switch(sig_flags) {
+			case PHAR_SIG_OPENSSL_SHA512:
+			case PHAR_SIG_OPENSSL_SHA256:
 			case PHAR_SIG_OPENSSL: {
 				uint32_t signature_len;
 				char *sig;
@@ -891,7 +894,7 @@ static int phar_parse_pharfile(php_stream *fp, char *fname, size_t fname_len, ch
 					return FAILURE;
 				}
 
-				if (FAILURE == phar_verify_signature(fp, end_of_phar, PHAR_SIG_OPENSSL, sig, signature_len, fname, &signature, &sig_len, error)) {
+				if (FAILURE == phar_verify_signature(fp, end_of_phar, sig_flags, sig, signature_len, fname, &signature, &sig_len, error)) {
 					efree(savebuf);
 					efree(sig);
 					php_stream_close(fp);
@@ -1619,11 +1622,12 @@ static inline char *phar_strnstr(const char *buf, int buf_len, const char *searc
  */
 static int phar_open_from_fp(php_stream* fp, char *fname, size_t fname_len, char *alias, size_t alias_len, uint32_t options, phar_archive_data** pphar, int is_data, char **error) /* {{{ */
 {
-	const char token[] = "__HALT_COMPILER();";
-	const char zip_magic[] = "PK\x03\x04";
-	const char gz_magic[] = "\x1f\x8b\x08";
-	const char bz_magic[] = "BZh";
+	static const char token[] = "__HALT_COMPILER();";
+	static const char zip_magic[] = "PK\x03\x04";
+	static const char gz_magic[] = "\x1f\x8b\x08";
+	static const char bz_magic[] = "BZh";
 	char *pos, test = '\0';
+	int recursion_count = 3; // arbitrary limit to avoid too deep or even infinite recursion
 	const int window_size = 1024;
 	char buffer[1024 + sizeof(token)]; /* a 1024 byte window + the size of the halt_compiler token (moving window) */
 	const zend_long readsize = sizeof(buffer) - sizeof(token);
@@ -1651,7 +1655,7 @@ static int phar_open_from_fp(php_stream* fp, char *fname, size_t fname_len, char
 			MAPPHAR_ALLOC_FAIL("internal corruption of phar \"%s\" (truncated entry)")
 		}
 
-		if (!test) {
+		if (!test && recursion_count) {
 			test = '\1';
 			pos = buffer+tokenlen;
 			if (!memcmp(pos, gz_magic, 3)) {
@@ -1713,6 +1717,10 @@ static int phar_open_from_fp(php_stream* fp, char *fname, size_t fname_len, char
 
 				/* now, start over */
 				test = '\0';
+				if (!--recursion_count) {
+					MAPPHAR_ALLOC_FAIL("unable to decompress gzipped phar archive \"%s\"");
+					break;
+				}
 				continue;
 			} else if (!memcmp(pos, bz_magic, 3)) {
 				php_stream_filter *filter;
@@ -1751,6 +1759,10 @@ static int phar_open_from_fp(php_stream* fp, char *fname, size_t fname_len, char
 
 				/* now, start over */
 				test = '\0';
+				if (!--recursion_count) {
+					MAPPHAR_ALLOC_FAIL("unable to decompress bzipped phar archive \"%s\"");
+					break;
+				}
 				continue;
 			}
 
@@ -2012,7 +2024,7 @@ woohoo:
 		} else {
 			zend_string *str_key;
 
-			ZEND_HASH_FOREACH_STR_KEY_PTR(&PHAR_G(phar_fname_map), str_key, pphar) {
+			ZEND_HASH_MAP_FOREACH_STR_KEY_PTR(&PHAR_G(phar_fname_map), str_key, pphar) {
 				if (ZSTR_LEN(str_key) > (uint32_t) filename_len) {
 					continue;
 				}
@@ -2025,7 +2037,7 @@ woohoo:
 			} ZEND_HASH_FOREACH_END();
 
 			if (PHAR_G(manifest_cached)) {
-				ZEND_HASH_FOREACH_STR_KEY_PTR(&cached_phars, str_key, pphar) {
+				ZEND_HASH_MAP_FOREACH_STR_KEY_PTR(&cached_phars, str_key, pphar) {
 					if (ZSTR_LEN(str_key) > (uint32_t) filename_len) {
 						continue;
 					}
@@ -2528,7 +2540,6 @@ int phar_flush(phar_archive_data *phar, char *user_stub, zend_long len, int conv
 {
 	char halt_stub[] = "__HALT_COMPILER();";
 	zend_string *newstub;
-	char *tmp;
 	phar_entry_info *entry, *newentry;
 	size_t halt_offset;
 	int restore_alias_len, global_flags = 0, closeoldfile;
@@ -2632,9 +2643,7 @@ int phar_flush(phar_archive_data *phar, char *user_stub, zend_long len, int conv
 		} else {
 			free_user_stub = 0;
 		}
-		tmp = estrndup(user_stub, len);
-		if ((pos = php_stristr(tmp, halt_stub, len, sizeof(halt_stub) - 1)) == NULL) {
-			efree(tmp);
+		if ((pos = php_stristr(user_stub, halt_stub, len, sizeof(halt_stub) - 1)) == NULL) {
 			if (closeoldfile) {
 				php_stream_close(oldfile);
 			}
@@ -2647,8 +2656,6 @@ int phar_flush(phar_archive_data *phar, char *user_stub, zend_long len, int conv
 			}
 			return EOF;
 		}
-		pos = user_stub + (pos - tmp);
-		efree(tmp);
 		len = pos - user_stub + 18;
 		if ((size_t)len != php_stream_write(newfile, user_stub, len)
 		||			  5 != php_stream_write(newfile, " ?>\r\n", 5)) {
@@ -2720,7 +2727,7 @@ int phar_flush(phar_archive_data *phar, char *user_stub, zend_long len, int conv
 	}
 	new_manifest_count = 0;
 	offset = 0;
-	ZEND_HASH_FOREACH_PTR(&phar->manifest, entry) {
+	ZEND_HASH_MAP_FOREACH_PTR(&phar->manifest, entry) {
 		if (entry->cfp) {
 			/* did we forget to get rid of cfp last time? */
 			php_stream_close(entry->cfp);
@@ -2952,7 +2959,7 @@ int phar_flush(phar_archive_data *phar, char *user_stub, zend_long len, int conv
 	manifest_ftell = php_stream_tell(newfile);
 
 	/* now write the manifest */
-	ZEND_HASH_FOREACH_PTR(&phar->manifest, entry) {
+	ZEND_HASH_MAP_FOREACH_PTR(&phar->manifest, entry) {
 		const zend_string *metadata_str;
 		if (entry->is_deleted || entry->is_mounted) {
 			/* remove this from the new phar if deleted, ignore if mounted */
@@ -3036,7 +3043,7 @@ int phar_flush(phar_archive_data *phar, char *user_stub, zend_long len, int conv
 
 	/* now copy the actual file data to the new phar */
 	offset = php_stream_tell(newfile);
-	ZEND_HASH_FOREACH_PTR(&phar->manifest, entry) {
+	ZEND_HASH_MAP_FOREACH_PTR(&phar->manifest, entry) {
 		if (entry->is_deleted || entry->is_dir || entry->is_mounted) {
 			continue;
 		}
@@ -3145,7 +3152,9 @@ int phar_flush(phar_archive_data *phar, char *user_stub, zend_long len, int conv
 
 				php_stream_write(newfile, digest, digest_len);
 				efree(digest);
-				if (phar->sig_flags == PHAR_SIG_OPENSSL) {
+				if (phar->sig_flags == PHAR_SIG_OPENSSL ||
+					phar->sig_flags == PHAR_SIG_OPENSSL_SHA256 ||
+					phar->sig_flags == PHAR_SIG_OPENSSL_SHA512) {
 					phar_set_32(sig_buf, digest_len);
 					php_stream_write(newfile, sig_buf, 4);
 				}
@@ -3246,7 +3255,7 @@ cleanup:
 	if (shared_cfp != NULL) {
 		php_stream_close(shared_cfp);
 	}
-	ZEND_HASH_FOREACH_PTR(&phar->manifest, entry) {
+	ZEND_HASH_MAP_FOREACH_PTR(&phar->manifest, entry) {
 		if (entry->cfp) {
 			entry->cfp = NULL;
 			entry->header_offset = 0;
@@ -3499,7 +3508,7 @@ void phar_request_initialize(void) /* {{{ */
 			phar_archive_data *pphar;
 			phar_entry_fp *stuff = (phar_entry_fp *) ecalloc(zend_hash_num_elements(&cached_phars), sizeof(phar_entry_fp));
 
-			ZEND_HASH_FOREACH_PTR(&cached_phars, pphar) {
+			ZEND_HASH_MAP_FOREACH_PTR(&cached_phars, pphar) {
 				stuff[pphar->phar_pos].manifest = (phar_entry_fp_info *) ecalloc( zend_hash_num_elements(&(pphar->manifest)), sizeof(phar_entry_fp_info));
 			} ZEND_HASH_FOREACH_END();
 
@@ -3565,7 +3574,7 @@ PHP_MINFO_FUNCTION(phar) /* {{{ */
 {
 	phar_request_initialize();
 	php_info_print_table_start();
-	php_info_print_table_header(2, "Phar: PHP Archive support", "enabled");
+	php_info_print_table_row(2, "Phar: PHP Archive support", "enabled");
 	php_info_print_table_row(2, "Phar API version", PHP_PHAR_API_VERSION);
 	php_info_print_table_row(2, "Phar-based phar archives", "enabled");
 	php_info_print_table_row(2, "Tar-based phar archives", "enabled");

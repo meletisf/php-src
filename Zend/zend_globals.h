@@ -22,9 +22,12 @@
 
 
 #include <setjmp.h>
+#include <stdint.h>
+#include <sys/types.h>
 
 #include "zend_globals_macros.h"
 
+#include "zend_atomic.h"
 #include "zend_stack.h"
 #include "zend_ptr_stack.h"
 #include "zend_hash.h"
@@ -36,6 +39,8 @@
 #include "zend_multibyte.h"
 #include "zend_multiply.h"
 #include "zend_arena.h"
+#include "zend_call_stack.h"
+#include "zend_max_execution_timer.h"
 
 /* Define ZTS if you want a thread-safe Zend */
 /*#undef ZTS*/
@@ -53,6 +58,10 @@ END_EXTERN_C()
 
 #define SYMTABLE_CACHE_SIZE 32
 
+#ifdef ZEND_CHECK_STACK_LIMIT
+# define ZEND_MAX_ALLOWED_STACK_SIZE_UNCHECKED -1
+# define ZEND_MAX_ALLOWED_STACK_SIZE_DETECT     0
+#endif
 
 #include "zend_compile.h"
 
@@ -63,6 +72,12 @@ typedef struct _zend_vm_stack *zend_vm_stack;
 typedef struct _zend_ini_entry zend_ini_entry;
 typedef struct _zend_fiber_context zend_fiber_context;
 typedef struct _zend_fiber zend_fiber;
+
+typedef enum {
+	ZEND_MEMOIZE_NONE,
+	ZEND_MEMOIZE_COMPILE,
+	ZEND_MEMOIZE_FETCH,
+} zend_memoize_mode;
 
 struct _zend_compiler_globals {
 	zend_stack loop_var_stack;
@@ -81,7 +96,7 @@ struct _zend_compiler_globals {
 	HashTable *auto_globals;
 
 	/* Refer to zend_yytnamerr() in zend_language_parser.y for meaning of values */
-	zend_uchar parse_error;
+	uint8_t parse_error;
 	bool in_compilation;
 	bool short_tags;
 
@@ -123,8 +138,9 @@ struct _zend_compiler_globals {
 
 	zend_stack delayed_oplines_stack;
 	HashTable *memoized_exprs;
-	int memoize_mode;
+	zend_memoize_mode memoize_mode;
 
+	void   *map_ptr_real_base;
 	void   *map_ptr_base;
 	size_t  map_ptr_size;
 	size_t  map_ptr_last;
@@ -137,6 +153,9 @@ struct _zend_compiler_globals {
 	uint32_t rtd_key_counter;
 
 	zend_stack short_circuiting_opnums;
+#ifdef ZTS
+	uint32_t copied_functions_count;
+#endif
 };
 
 
@@ -188,9 +207,11 @@ struct _zend_executor_globals {
 	/* for extended information support */
 	bool no_extensions;
 
-	bool vm_interrupt;
-	bool timed_out;
+	zend_atomic_bool vm_interrupt;
+	zend_atomic_bool timed_out;
 	zend_long hard_timeout;
+	void *stack_base;
+	void *stack_limit;
 
 #ifdef ZEND_WIN32
 	OSVERSIONINFOEX windows_version_info;
@@ -226,7 +247,7 @@ struct _zend_executor_globals {
 	struct _zend_module_entry *current_module;
 
 	bool active;
-	zend_uchar flags;
+	uint8_t flags;
 
 	zend_long assertions;
 
@@ -257,13 +278,29 @@ struct _zend_executor_globals {
 	zend_fiber *active_fiber;
 
 	/* Default fiber C stack size. */
-	zend_long fiber_stack_size;
+	size_t fiber_stack_size;
 
 	/* If record_errors is enabled, all emitted diagnostics will be recorded,
 	 * in addition to being processed as usual. */
 	bool record_errors;
 	uint32_t num_errors;
 	zend_error_info **errors;
+
+	/* Override filename or line number of thrown errors and exceptions */
+	zend_string *filename_override;
+	zend_long lineno_override;
+
+#ifdef ZEND_CHECK_STACK_LIMIT
+	zend_call_stack call_stack;
+	zend_long max_allowed_stack_size;
+	zend_ulong reserved_stack_size;
+#endif
+
+#ifdef ZEND_MAX_EXECUTION_TIMERS
+	timer_t max_execution_timer_timer;
+	pid_t pid;
+	struct sigaction oldact;
+#endif
 
 	void *reserved[ZEND_MAX_RESERVED_RESOURCES];
 };
@@ -278,11 +315,11 @@ struct _zend_ini_scanner_globals {
 	zend_file_handle *yy_out;
 
 	unsigned int yy_leng;
-	unsigned char *yy_start;
-	unsigned char *yy_text;
-	unsigned char *yy_cursor;
-	unsigned char *yy_marker;
-	unsigned char *yy_limit;
+	const unsigned char *yy_start;
+	const unsigned char *yy_text;
+	const unsigned char *yy_cursor;
+	const unsigned char *yy_marker;
+	const unsigned char *yy_limit;
 	int yy_state;
 	zend_stack state_stack;
 
